@@ -212,6 +212,14 @@ def signup(request):
         form = SignUpForm(request.POST)
         if form.is_valid():
             user = form.save()
+            # 첫 가입자라면 자동으로 관리자 권한 부여
+            User = get_user_model()
+            if not User.objects.filter(is_superuser=True).exists():
+                user.is_superuser = True
+                user.is_staff = True
+                user.save(update_fields=['is_superuser', 'is_staff'])
+                admin_group, _ = Group.objects.get_or_create(name=ADMIN_GROUP)
+                user.groups.add(admin_group)
             login(request, user)
             messages.success(request, '회원가입이 완료되었습니다.')
             return redirect('dashboard')
