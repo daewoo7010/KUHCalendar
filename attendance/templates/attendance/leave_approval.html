@@ -1,0 +1,62 @@
+{% extends 'attendance/base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>휴가 승인</h4>
+    <span class="text-muted">내 결재 대기: {{ actionable_steps|length }}</span>
+</div>
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>신청자</th>
+                        <th>기간</th>
+                        <th>유형</th>
+                        <th>결재선</th>
+                        <th class="text-end">결재</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for step in actionable_steps %}
+                    {% with leave=step.leave %}
+                    <tr>
+                        <td>{{ leave.user.username }}</td>
+                        <td>{{ leave.start_date }} ~ {{ leave.end_date }}</td>
+                        <td>{{ leave.leave_type }}</td>
+                        <td>
+                            <div class="d-flex flex-column gap-1">
+                                {% for s in leave.approval_steps.all %}
+                                <div class="d-flex align-items-center">
+                                    <span class="badge {% if s.status == 'approved' %}bg-success{% elif s.status == 'rejected' %}bg-danger{% else %}bg-warning text-dark{% endif %} me-2">{{ s.order }}단계</span>
+                                    <span class="me-2">{{ s.approver.username }}</span>
+                                    <span class="text-muted small">{{ s.get_status_display }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td class="text-end">
+                            <form method="post" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="step_id" value="{{ step.id }}">
+                                <input type="hidden" name="action" value="approve">
+                                <button class="btn btn-success btn-sm me-1"><i class="bi bi-check-lg"></i></button>
+                            </form>
+                            <form method="post" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="step_id" value="{{ step.id }}">
+                                <input type="hidden" name="action" value="reject">
+                                <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-lg"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">대기 중인 휴가 신청이 없습니다.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

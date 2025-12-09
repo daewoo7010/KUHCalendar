@@ -1,0 +1,389 @@
+{% extends 'attendance/base.html' %}
+{% block content %}
+
+<!-- 상단 요약 카드 -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card shadow-sm border-0">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar3 text-primary fs-1"></i>
+                <h5 class="card-title mt-2">총 연차</h5>
+                <h2 class="text-primary">{{ leave_summary.earned|default:0 }}일</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card shadow-sm border-0">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar-x text-warning fs-1"></i>
+                <h5 class="card-title mt-2">사용 연차</h5>
+                <h2 class="text-warning">{{ leave_summary.used|default:0 }}일</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card shadow-sm border-0">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar-check text-success fs-1"></i>
+                <h5 class="card-title mt-2">잔여 연차</h5>
+                <h2 class="{% if leave_summary.remaining < 3 %}text-danger{% else %}text-success{% endif %}">{{ leave_summary.remaining|default:0 }}일</h2>
+                {% if leave_summary.missing_join_date %}
+                <div class="text-danger small mt-1">입사일 정보가 필요합니다.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card shadow-sm border-0">
+            <div class="card-body text-center">
+                <i class="bi bi-clipboard2-check text-danger fs-1"></i>
+                <h5 class="card-title mt-2">출장 보고 필요</h5>
+                <h2 class="text-danger">{{ pending_trip_reports }}건</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 액션 버튼 -->
+<div class="d-flex gap-2 mb-4">
+    <a href="{% url 'leave_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-2"></i>휴가 신청
+    </a>
+    <a href="{% url 'trip_create' %}" class="btn btn-outline-primary">
+        <i class="bi bi-airplane me-2"></i>출장 신청
+    </a>
+</div>
+
+<!-- 캘린더 -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <h5 class="mb-0"><i class="bi bi-calendar3-event me-2"></i>승인된 휴가/출장 캘린더</h5>
+        <small class="text-muted">파란색/하늘색: 내 일정 · 회색: 다른 인원</small>
+    </div>
+    <div class="card-body">
+        <div id="calendar"></div>
+    </div>
+</div>
+
+<!-- 휴가 신청 내역 -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>내 휴가 내역</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>기간</th>
+                        <th>유형</th>
+                        <th>일수</th>
+                        <th>상태</th>
+                        <th class="text-end">관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for leave in my_leaves %}
+                    <tr>
+                        <td>{{ leave.start_date }} ~ {{ leave.end_date }}</td>
+                        <td>{{ leave.leave_type }}</td>
+                        <td>{{ leave.days }}</td>
+                        <td>
+                            {% if leave.status == 'pending' %}
+                                <span class="badge bg-warning">대기</span>
+                            {% elif leave.status == 'approved' %}
+                                <span class="badge bg-success">승인</span>
+                            {% else %}
+                                <span class="badge bg-danger">반려</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <form method="post" action="{% url 'leave_delete' leave.id %}" class="d-inline" onsubmit="return confirm('이 휴가 신청을 삭제할까요?');">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">신청 내역이 없습니다.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 출장 신청 내역 -->
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white">
+        <h5 class="mb-0"><i class="bi bi-airplane-fill me-2"></i>내 출장 내역</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>기간</th>
+                        <th>장소</th>
+                        <th>목적</th>
+                        <th>신청자/동석자</th>
+                        <th>상태</th>
+                        <th>보고</th>
+                        <th class="text-end">관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trip in my_trips %}
+                    <tr class="{% if trip.status == 'approved' and not trip.report_content %}table-danger-subtle{% endif %}">
+                        <td>
+                            {% if trip.all_day %}
+                                {{ trip.start_date|date:"Y-m-d" }} (종일)
+                            {% else %}
+                                {{ trip.start_date|date:"Y-m-d a h:i" }} ~ {{ trip.end_date|date:"Y-m-d a h:i" }}
+                            {% endif %}
+                        </td>
+                        <td>{{ trip.location }}</td>
+                        <td>{{ trip.purpose|truncatewords:5 }}</td>
+                        <td class="text-muted small">
+                            {% with plist=trip.participants.all %}
+                                {% if plist %}
+                                    {{ trip.user.username }}{% for p in plist %}{% if forloop.first %}, {% else %}, {% endif %}{{ p.username }}{% endfor %}
+                                {% else %}
+                                    {{ trip.user.username }}
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td>
+                            {% if trip.status == 'pending' %}
+                                <span class="badge bg-warning">대기</span>
+                            {% elif trip.status == 'approved' %}
+                                <span class="badge {% if trip.status == 'approved' and not trip.report_content %}bg-danger-subtle text-danger{% else %}bg-success{% endif %}">승인{% if trip.status == 'approved' and not trip.report_content %}·보고 필요{% endif %}</span>
+                            {% else %}
+                                <span class="badge bg-danger">반려</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if trip.status == 'approved' %}
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#tripReportModal" data-trip-id="{{ trip.id }}" data-trip-location="{{ trip.location }}" data-trip-range="{{ trip.start_date|date:'Y-m-d H:i' }} ~ {{ trip.end_date|date:'Y-m-d H:i' }}" data-trip-purpose="{{ trip.purpose|escapejs }}" data-trip-report="{{ trip.report_content|default_if_none:''|escapejs }}">
+                                    <i class="bi bi-pencil-square me-1"></i>{% if trip.report_content %}확인/수정{% else %}보고 작성{% endif %}
+                                </button>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-secondary me-1" href="{% url 'trip_update' trip.id %}"><i class="bi bi-pencil"></i></a>
+                            <form method="post" action="{% url 'trip_delete' trip.id %}" class="d-inline" onsubmit="return confirm('이 출장 신청을 삭제할까요?');">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">신청 내역이 없습니다.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const rawData = (document.getElementById('calendar-data') && document.getElementById('calendar-data').textContent) || '{{ calendar_events_json|escapejs }}';
+        let events = [];
+        try {
+            events = rawData ? JSON.parse(rawData) : [];
+        } catch (e) {
+            console.error('캘린더 데이터 파싱 오류', e, rawData);
+            events = [];
+        }
+        const calendarEl = document.getElementById('calendar');
+        if (!calendarEl) return;
+
+        const decodeNewlines = (value) => {
+            return (value || '')
+                .replace(/\\u000d\\u000a/gi, '\n') // escaped CRLF from escapejs
+                .replace(/\\r\\n/g, '\n')       // escaped CRLF
+                .replace(/\\n/g, '\n')           // escaped LF
+                .replace(/\\r/g, '\n')           // escaped CR
+                .replace(/\r\n/g, '\n')          // actual CRLF
+                .replace(/\r/g, '\n');            // actual CR
+        };
+
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'timeGridWeek',
+            locale: 'ko',
+            height: 750,
+            nowIndicator: true,
+            slotMinTime: '06:00:00',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+            },
+            events: events,
+            eventDisplay: 'block',
+            eventContent: function(arg) {
+                const props = arg.event.extendedProps || {};
+                const badge = props.type === 'trip' ? '출장' : '휴가';
+                const inner = document.createElement('div');
+                inner.className = 'fc-event-title fc-sticky d-flex align-items-center gap-1';
+
+                const badgeEl = document.createElement('span');
+                badgeEl.className = 'badge bg-light text-dark';
+                badgeEl.textContent = badge;
+
+                const people = document.createElement('span');
+                people.className = 'text-truncate';
+                const companions = (props.participants || []).filter(Boolean);
+                const names = [props.user].concat(companions);
+                people.textContent = names.join(', ');
+
+                const title = document.createElement('span');
+                title.className = 'text-truncate';
+                title.textContent = arg.event.title;
+
+                inner.appendChild(badgeEl);
+                inner.appendChild(people);
+                inner.appendChild(title);
+                return { domNodes: [inner] };
+            },
+            eventClick: function(info) {
+                info.jsEvent.preventDefault();
+                const props = info.event.extendedProps || {};
+                const modal = new bootstrap.Modal(document.getElementById('eventDetailModal'));
+                document.getElementById('modalEventType').textContent = props.type === 'trip' ? '출장' : '휴가';
+                document.getElementById('modalEventUser').textContent = props.user || '-';
+                document.getElementById('modalEventRange').textContent = props.range || '-';
+                document.getElementById('modalEventLocation').textContent = props.location || '-';
+                document.getElementById('modalEventPurpose').textContent = props.purpose || props.reason || props.title || '-';
+                const modalParticipants = document.getElementById('modalEventParticipants');
+                if (modalParticipants) {
+                    const companions = (props.participants || []).filter(Boolean);
+                    const names = [props.user].concat(companions).filter(Boolean);
+                    modalParticipants.textContent = names.length ? names.join(', ') : '-';
+                }
+
+                // 관리 버튼 (본인 일정만)
+                const actionRow = document.getElementById('modalEventActions');
+                const editLink = document.getElementById('modalEventEdit');
+                const deleteForm = document.getElementById('modalEventDeleteForm');
+                const deleteType = document.getElementById('modalEventDeleteType');
+                if (props.canManage) {
+                    actionRow.classList.remove('d-none');
+                    if (props.type === 'trip') {
+                        editLink.classList.remove('d-none');
+                        editLink.href = props.editUrl || '#';
+                        deleteType.textContent = '출장 삭제';
+                    } else {
+                        editLink.classList.add('d-none');
+                        editLink.removeAttribute('href');
+                        deleteType.textContent = '휴가 삭제';
+                    }
+                    deleteForm.action = props.deleteUrl || '#';
+                } else {
+                    actionRow.classList.add('d-none');
+                    editLink.classList.add('d-none');
+                    editLink.removeAttribute('href');
+                    deleteForm.action = '#';
+                }
+
+                modal.show();
+            },
+        });
+        calendar.render();
+
+        // Prefill trip report modal with existing trip data
+        const tripModal = document.getElementById('tripReportModal');
+        if (tripModal) {
+            tripModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                if (!button) return;
+
+                this.querySelector('input[name="trip_id"]').value = button.getAttribute('data-trip-id') || '';
+                this.querySelector('[data-field="trip-location"]').textContent = button.getAttribute('data-trip-location') || '-';
+                this.querySelector('[data-field="trip-range"]').textContent = button.getAttribute('data-trip-range') || '-';
+                this.querySelector('[data-field="trip-purpose"]').textContent = decodeNewlines(button.getAttribute('data-trip-purpose')) || '-';
+
+                const textarea = this.querySelector('textarea[name="report_content"]');
+                textarea.value = decodeNewlines(button.getAttribute('data-trip-report'));
+            });
+        }
+    });
+</script>
+<script id="calendar-data" type="application/json">{{ calendar_events_json|safe }}</script>
+<!-- Event Detail Modal -->
+<div class="modal fade" id="eventDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-info-circle me-2"></i>일정 상세</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">구분</dt>
+                    <dd class="col-sm-8" id="modalEventType">-</dd>
+                    <dt class="col-sm-4">사용자</dt>
+                    <dd class="col-sm-8" id="modalEventUser">-</dd>
+                    <dt class="col-sm-4">기간</dt>
+                    <dd class="col-sm-8" id="modalEventRange">-</dd>
+                <div id="modalEventActions" class="d-flex justify-content-end gap-2 d-none">
+                    <a id="modalEventEdit" class="btn btn-outline-secondary btn-sm d-none" href="#"><i class="bi bi-pencil"></i> 수정</a>
+                    <form id="modalEventDeleteForm" method="post" action="#" onsubmit="return confirm('이 일정을 삭제할까요?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> <span id="modalEventDeleteType">삭제</span></button>
+                    </form>
+                </div>
+                    <dt class="col-sm-4">장소</dt>
+                    <dd class="col-sm-8" id="modalEventLocation">-</dd>
+                    <dt class="col-sm-4">내용</dt>
+                    <dd class="col-sm-8" id="modalEventPurpose">-</dd>
+                    <dt class="col-sm-4">신청자/동석자</dt>
+                    <dd class="col-sm-8" id="modalEventParticipants">-</dd>
+                </dl>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trip Report Modal -->
+<div class="modal fade" id="tripReportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'trip_report_quick' %}">
+                {% csrf_token %}
+                <input type="hidden" name="trip_id" value="">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>출장 보고</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2 text-muted small">
+                        <div><strong>장소:</strong> <span data-field="trip-location">-</span></div>
+                        <div><strong>기간:</strong> <span data-field="trip-range">-</span></div>
+                        <div><strong>목적:</strong> <span data-field="trip-purpose">-</span></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">보고 내용</label>
+                        <textarea name="report_content" class="form-control" rows="5" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">닫기</button>
+                    <button type="submit" class="btn btn-primary">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

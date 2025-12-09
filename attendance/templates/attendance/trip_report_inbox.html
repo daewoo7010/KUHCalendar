@@ -1,0 +1,50 @@
+{% extends 'attendance/base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-inbox me-2"></i>출장 보고함</h4>
+    <span class="text-muted">보고서 건수: {{ reports|length }}</span>
+</div>
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <colgroup>
+                    <col style="width: 12%">
+                    <col style="width: 18%">
+                    <col style="width: 22%">
+                    <col style="width: 18%">
+                    <col style="width: 30%">
+                </colgroup>
+                <thead class="table-light">
+                    <tr>
+                        <th>작성자</th>
+                        <th>출장지</th>
+                        <th>기간</th>
+                        <th>목적</th>
+                        <th>보고 내용</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trip in reports %}
+                    <tr>
+                        <td>{{ trip.user.username }}</td>
+                        <td class="text-wrap" style="white-space: normal;">{{ trip.location }}</td>
+                        <td>
+                            {% if trip.all_day %}
+                                {{ trip.start_date|date:"Y-m-d" }} (종일)
+                            {% else %}
+                                {{ trip.start_date|date:"Y-m-d a h:i" }} ~ {{ trip.end_date|date:"Y-m-d a h:i" }}
+                            {% endif %}
+                        </td>
+                        <td>{{ trip.purpose|truncatewords:10 }}</td>
+                        <td class="small">{{ trip.report_content|linebreaksbr }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">등록된 출장 보고가 없습니다.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

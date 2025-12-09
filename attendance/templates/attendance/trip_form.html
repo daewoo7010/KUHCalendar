@@ -1,0 +1,205 @@
+{% extends 'attendance/base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-airplane-fill me-2"></i>
+                    {% if is_edit %}출장 신청 수정{% else %}출장 신청{% endif %}
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    {% for field in form %}
+                        {% if field.name == 'participants' %}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" for="participant-picker">{{ field.label }}</label>
+                            <div class="d-flex gap-2 mb-2">
+                                <select id="participant-picker" class="form-select" data-participant-source>
+                                    <option value="">동석자 선택...</option>
+                                    {% for u in form.fields.participants.queryset %}
+                                        <option value="{{ u.id }}">{{ u.username }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="btn btn-outline-primary" id="add-participant-btn">
+                                    <i class="bi bi-plus-circle"></i> 추가
+                                </button>
+                            </div>
+                            <div id="participant-chips" class="d-flex flex-wrap gap-2"></div>
+                            <div class="form-text" id="participant-helper">동석자를 버튼으로 추가/제거할 수 있습니다.</div>
+                            <div class="d-none">{{ field }}</div>
+                            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% else %}
+                        <div class="mb-3">
+                            {% if field.name == 'all_day' %}
+                                <div class="form-check">
+                                    {{ field }}
+                                    <label class="form-check-label fw-bold" for="id_{{ field.name }}">{{ field.label }}</label>
+                                </div>
+                            {% else %}
+                                <label class="form-label fw-bold" for="id_{{ field.name }}">{{ field.label }}</label>
+                                {{ field }}
+                            {% endif %}
+                            {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                            {% if field.errors %}
+                            <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-2"></i>{% if is_edit %}수정하기{% else %}신청하기{% endif %}
+                        </button>
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-2"></i>취소
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Replace native datetime picker with date + time input (step 10m) plus datalist options
+    document.addEventListener('DOMContentLoaded', () => {
+        const pad = (n) => String(n).padStart(2, '0');
+
+        document.querySelectorAll('input[type="datetime-local"]').forEach((hiddenInput) => {
+            const fieldName = hiddenInput.getAttribute('name');
+
+            // Parse existing value
+            let datePart = '';
+            let timePart = '09:00';
+            if (hiddenInput.value) {
+                const [d, t] = hiddenInput.value.split('T');
+                datePart = d;
+                if (t) timePart = t.slice(0,5);
+            }
+
+            // Build controls
+            const dateInput = document.createElement('input');
+            dateInput.type = 'date';
+            dateInput.className = 'form-control mb-2';
+            dateInput.value = datePart;
+
+            const timeInput = document.createElement('input');
+            timeInput.type = 'time';
+            timeInput.className = 'form-control';
+            timeInput.step = '600'; // 10 minutes
+            timeInput.value = timePart;
+
+            // Datalist of 10-minute options for quick pick
+            const listId = `${fieldName}-time-options`;
+            const dataList = document.createElement('datalist');
+            dataList.id = listId;
+            for (let h = 0; h < 24; h++) {
+                for (let m = 0; m < 60; m += 10) {
+                    const hh = pad(h); const mm = pad(m);
+                    const opt = document.createElement('option');
+                    opt.value = `${hh}:${mm}`;
+                    dataList.appendChild(opt);
+                }
+            }
+            timeInput.setAttribute('list', listId);
+
+            const sync = () => {
+                if (!dateInput.value || !timeInput.value) return;
+                hiddenInput.value = `${dateInput.value}T${timeInput.value}`;
+            };
+            dateInput.addEventListener('change', sync);
+            timeInput.addEventListener('change', sync);
+            timeInput.addEventListener('blur', sync);
+
+            hiddenInput.type = 'hidden';
+            hiddenInput.parentNode.insertBefore(dateInput, hiddenInput);
+            hiddenInput.parentNode.insertBefore(timeInput, hiddenInput);
+            hiddenInput.parentNode.insertBefore(dataList, hiddenInput);
+            sync();
+        });
+
+        // 종일 체크 시 시간 입력 숨기기
+        const allDayCheckbox = document.querySelector('#id_all_day');
+        if (allDayCheckbox) {
+            const timeControls = document.querySelectorAll('input[type="time"], datalist');
+            const toggleTime = () => {
+                timeControls.forEach(el => {
+                    el.closest('div')?.classList.toggle('d-none', allDayCheckbox.checked && el.tagName !== 'DATALIST');
+                    if (el.type === 'time') {
+                        el.disabled = allDayCheckbox.checked;
+                    }
+                });
+            };
+            allDayCheckbox.addEventListener('change', toggleTime);
+            toggleTime();
+        }
+
+        // Participants picker -> chips -> hidden multiple select values
+        const hiddenParticipants = document.querySelector('select[name="participants"]');
+        const picker = document.getElementById('participant-picker');
+        const addBtn = document.getElementById('add-participant-btn');
+        const chipContainer = document.getElementById('participant-chips');
+        const helper = document.getElementById('participant-helper');
+        if (hiddenParticipants && picker && addBtn && chipContainer) {
+            const state = new Map(); // id -> label
+
+            const syncHidden = () => {
+                // Clear current selections
+                Array.from(hiddenParticipants.options).forEach(opt => { opt.selected = false; });
+                // Apply selections
+                state.forEach((_, id) => {
+                    const opt = hiddenParticipants.querySelector(`option[value="${id}"]`);
+                    if (opt) opt.selected = true;
+                });
+            };
+
+            const renderChips = () => {
+                chipContainer.innerHTML = '';
+                state.forEach((label, id) => {
+                    const chip = document.createElement('span');
+                    chip.className = 'badge bg-light text-dark border d-flex align-items-center gap-2 px-2 py-1';
+                    chip.textContent = label;
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'btn-close btn-close-dark btn-sm ms-1';
+                    removeBtn.setAttribute('aria-label', 'remove');
+                    removeBtn.addEventListener('click', () => {
+                        state.delete(id);
+                        syncHidden();
+                        renderChips();
+                        if (helper) helper.textContent = `${label} 삭제됨`;
+                    });
+                    chip.appendChild(removeBtn);
+                    chipContainer.appendChild(chip);
+                });
+                if (helper) {
+                    helper.textContent = state.size ? `${state.size}명 추가됨` : '동석자를 버튼으로 추가/제거할 수 있습니다.';
+                }
+            };
+
+            // Initialize from existing selection (edit mode)
+            Array.from(hiddenParticipants.selectedOptions || []).forEach(opt => {
+                if (opt.value) state.set(opt.value, opt.textContent);
+            });
+            renderChips();
+
+            addBtn.addEventListener('click', () => {
+                const id = picker.value;
+                const label = picker.options[picker.selectedIndex]?.textContent || '';
+                if (!id) return;
+                state.set(id, label);
+                syncHidden();
+                renderChips();
+                picker.value = '';
+                if (helper) helper.textContent = `${label} 추가됨`;
+            });
+        }
+    });
+</script>
+{% endblock %}
