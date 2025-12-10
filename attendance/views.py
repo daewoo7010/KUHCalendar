@@ -18,8 +18,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.urls import reverse
 
-from .forms import LeaveForm, SignUpForm, TripForm, TripReportForm
-from .models import LeaveApprovalStep, LeaveBalance, LeaveRequest, TripReportRecipient, TripRequest
+from .forms import LeaveForm, SignUpForm, TripForm, TripReportForm, MeetingForm
+from .models import LeaveApprovalStep, LeaveBalance, LeaveRequest, TripReportRecipient, TripRequest, Meeting
 
 ADMIN_GROUP = '관리자'
 ROLE_GROUPS = ['관리자', '휴가 결재권자', '출장 결재권자', '경영관리부']
@@ -35,14 +35,14 @@ def _is_trip_recipient(user):
     return TripReportRecipient.objects.filter(user=user).exists()
 
 
-def _normalize_trip_datetimes(trip_obj):
-    """Ensure all-day trips span full local days and times are aligned."""
-    if getattr(trip_obj, 'all_day', False) and trip_obj.start_date and trip_obj.end_date:
+def _normalize_all_day_event(event_obj):
+    """Ensure all-day events span full local days and times are aligned."""
+    if getattr(event_obj, 'all_day', False) and event_obj.start_date and event_obj.end_date:
         tz = timezone.get_current_timezone()
-        start_date = timezone.localdate(trip_obj.start_date)
-        end_date = timezone.localdate(trip_obj.end_date)
-        trip_obj.start_date = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()), tz)
-        trip_obj.end_date = timezone.make_aware(timezone.datetime.combine(end_date, timezone.datetime.max.time().replace(microsecond=0)), tz)
+        start_date = timezone.localdate(event_obj.start_date)
+        end_date = timezone.localdate(event_obj.end_date)
+        event_obj.start_date = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()), tz)
+        event_obj.end_date = timezone.make_aware(timezone.datetime.combine(end_date, timezone.datetime.max.time().replace(microsecond=0)), tz)
 
 
 def _round_half_up(value: float) -> int:
@@ -340,6 +340,36 @@ def dashboard(request):
             },
         })
 
+    meeting_qs = Meeting.objects.select_related('user').prefetch_related('participants')
+    for meeting in meeting_qs:
+        owner = meeting.user_id == request.user.id
+        participant_ids = [p.id for p in meeting.participants.all()]
+        is_participant = request.user.id in participant_ids
+        mine_for_color = owner or is_participant
+        color = '#20c997' if mine_for_color else '#adb5bd'
+        is_all_day = getattr(meeting, 'all_day', False)
+        start_dt = timezone.localtime(meeting.start_date)
+        end_dt = timezone.localtime(meeting.end_date)
+        participant_names = [p.username for p in meeting.participants.all()]
+        calendar_events.append({
+            'title': meeting.subject,
+            'start': start_dt.date().isoformat() if is_all_day else start_dt.isoformat(),
+            'end': (end_dt.date() + timedelta(days=1)).isoformat() if is_all_day else end_dt.isoformat(),
+            'allDay': is_all_day,
+            'backgroundColor': color,
+            'borderColor': color,
+            'extendedProps': {
+                'type': 'meeting',
+                'id': meeting.id,
+                'user': meeting.user.username,
+                'range': f"{start_dt.strftime('%Y-%m-%d %p %I:%M')} ~ {end_dt.strftime('%Y-%m-%d %p %I:%M')}",
+                'purpose': meeting.subject,
+                'mine': mine_for_color,
+                'title': meeting.subject,
+                'participants': participant_names,
+            },
+        })
+
     return render(request, 'attendance/dashboard.html', {
         'leave_balance': leave_balance,
         'leave_summary': leave_summary,
@@ -378,7 +408,7 @@ def trip_create(request):
             trip_req = form.save(commit=False)
             trip_req.user = request.user
             trip_req.status = 'approved'  # 출장은 통보 형식으로 자동 승인
-            _normalize_trip_datetimes(trip_req)
+            _normalize_all_day_event(trip_req)
             trip_req.save()
             form.save_m2m()
             messages.success(request, '출장 신청이 완료되었습니다.')
@@ -386,6 +416,23 @@ def trip_create(request):
     else:
         form = TripForm()
     return render(request, 'attendance/trip_form.html', {'form': form})
+
+
+@login_required
+def meeting_create(request):
+    if request.method == 'POST':
+        form = MeetingForm(request.POST)
+        if form.is_valid():
+            meeting = form.save(commit=False)
+            meeting.user = request.user
+            _normalize_all_day_event(meeting)
+            meeting.save()
+            form.save_m2m()
+            messages.success(request, '미팅이 등록되었습니다.')
+            return redirect('dashboard')
+    else:
+        form = MeetingForm()
+    return render(request, 'attendance/meeting_form.html', {'form': form})
 
 
 @login_required
@@ -409,7 +456,7 @@ def trip_update(request, trip_id):
         form = TripForm(request.POST, instance=trip)
         if form.is_valid():
             trip_req = form.save(commit=False)
-            _normalize_trip_datetimes(trip_req)
+            _normalize_all_day_event(trip_req)
             trip_req.save()
             form.save_m2m()
             messages.success(request, '출장 신청을 수정했습니다.')

@@ -104,3 +104,24 @@ class TripReportRecipient(models.Model):
 
     def __str__(self):
         return f"출장 보고 수신: {self.user.username}"
+
+
+class Meeting(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    participants = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='meeting_participations', blank=True)
+    subject = models.CharField(max_length=200)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    all_day = models.BooleanField(default=False)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValidationError('종료일은 시작일보다 빠를 수 없습니다.')
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.user.username} - 미팅 ({self.subject})"

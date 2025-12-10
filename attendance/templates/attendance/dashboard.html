@@ -52,6 +52,9 @@
     <a href="{% url 'trip_create' %}" class="btn btn-outline-primary">
         <i class="bi bi-airplane me-2"></i>출장 신청
     </a>
+    <a href="{% url 'meeting_create' %}" class="btn btn-outline-success">
+        <i class="bi bi-people-fill me-2"></i>미팅 추가
+    </a>
 </div>
 
 <!-- 캘린더 -->
@@ -71,8 +74,8 @@
 </style>
 <div class="card shadow-sm border-0 mb-4" id="calendar-card">
     <div class="card-header bg-white d-flex align-items-center justify-content-between">
-        <h5 class="mb-0"><i class="bi bi-calendar3-event me-2"></i>승인된 휴가/출장 캘린더</h5>
-        <small class="text-muted">파란색/하늘색: 내 일정 · 회색: 다른 인원</small>
+        <h5 class="mb-0"><i class="bi bi-calendar3-event me-2"></i>승인된 휴가/출장/미팅 캘린더</h5>
+        <small class="text-muted">파랑(휴가)/하늘(출장)/초록(미팅): 내 일정 · 회색: 다른 인원</small>
     </div>
     <div class="card-body">
         <div id="calendar"></div>
@@ -271,14 +274,17 @@
                     return { domNodes: [] };
                 }
                 const props = arg.event.extendedProps || {};
-                const isTrip = props.type === 'trip';
-                const badge = isTrip ? '출장' : '휴가';
+                const typeLabel = props.type === 'trip' ? '출장' : props.type === 'meeting' ? '미팅' : '휴가';
+                const iconClass = props.type === 'trip' ? 'bi-airplane' : props.type === 'meeting' ? 'bi-people-fill' : 'bi-calendar-event';
                 const inner = document.createElement('div');
                 inner.className = 'fc-event-title fc-sticky d-flex align-items-center gap-1';
 
                 const badgeEl = document.createElement('span');
-                badgeEl.className = 'badge bg-light text-dark';
-                badgeEl.textContent = badge;
+                badgeEl.className = 'badge bg-light text-dark d-flex align-items-center gap-1';
+                const iconEl = document.createElement('i');
+                iconEl.className = `bi ${iconClass}`;
+                badgeEl.appendChild(iconEl);
+                badgeEl.appendChild(document.createTextNode(typeLabel));
 
                 inner.appendChild(badgeEl);
                 const people = document.createElement('span');
@@ -288,11 +294,16 @@
                 people.textContent = names.join(', ');
                 inner.appendChild(people);
 
-                if (isTrip) {
+                if (props.type === 'trip') {
                     const location = document.createElement('span');
                     location.className = 'text-truncate';
                     location.textContent = props.location || arg.event.title || '';
                     inner.appendChild(location);
+                } else if (props.type === 'meeting') {
+                    const subject = document.createElement('span');
+                    subject.className = 'text-truncate';
+                    subject.textContent = props.purpose || arg.event.title || '';
+                    inner.appendChild(subject);
                 }
                 return { domNodes: [inner] };
             },
@@ -303,10 +314,12 @@
                 info.jsEvent.preventDefault();
                 const props = info.event.extendedProps || {};
                 const modal = new bootstrap.Modal(document.getElementById('eventDetailModal'));
-                document.getElementById('modalEventType').textContent = props.type === 'trip' ? '출장' : '휴가';
+                const typeLabel = props.type === 'trip' ? '출장' : props.type === 'meeting' ? '미팅' : '휴가';
+                document.getElementById('modalEventType').textContent = typeLabel;
                 document.getElementById('modalEventUser').textContent = props.user || '-';
                 document.getElementById('modalEventRange').textContent = props.range || '-';
-                document.getElementById('modalEventLocation').textContent = props.location || '-';
+                const isMeeting = props.type === 'meeting';
+                document.getElementById('modalEventLocation').textContent = isMeeting ? '-' : (props.location || '-');
                 document.getElementById('modalEventPurpose').textContent = props.purpose || props.reason || props.title || '-';
                 const modalParticipants = document.getElementById('modalEventParticipants');
                 if (modalParticipants) {

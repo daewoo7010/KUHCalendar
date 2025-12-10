@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, LeaveBalance, LeaveRequest, LeaveApprovalStep, TripRequest, TripReportRecipient
+from .models import CustomUser, LeaveBalance, LeaveRequest, LeaveApprovalStep, TripRequest, TripReportRecipient, Meeting
 
 # --- Custom Actions ---
 @admin.action(description='[승인] 선택한 휴가 신청 승인 및 연차 차감')
@@ -74,3 +74,10 @@ class LeaveApprovalStepAdmin(admin.ModelAdmin):
 @admin.register(TripReportRecipient)
 class TripReportRecipientAdmin(admin.ModelAdmin):
     list_display = ('user',)
+
+
+@admin.register(Meeting)
+class MeetingAdmin(admin.ModelAdmin):
+    list_display = ('user', 'subject', 'start_date', 'end_date', 'all_day')
+    search_fields = ('subject', 'user__username')
+    filter_horizontal = ('participants',)

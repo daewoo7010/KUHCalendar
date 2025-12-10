@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user_model
 
-from .models import CustomUser, LeaveRequest, TripRequest
+from .models import CustomUser, LeaveRequest, TripRequest, Meeting
 
 
 class SignUpForm(UserCreationForm):
@@ -116,3 +116,50 @@ class TripReportForm(forms.ModelForm):
         labels = {
             'report_content': '출장 결과 보고',
         }
+
+
+class MeetingForm(forms.ModelForm):
+    class Meta:
+        model = Meeting
+        fields = ['subject', 'start_date', 'end_date', 'all_day', 'participants']
+        widgets = {
+            'subject': forms.TextInput(attrs={'class': 'form-control'}),
+            'start_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control', 'step': '600'}),
+            'end_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control', 'step': '600'}),
+            'all_day': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'participants': forms.SelectMultiple(attrs={'class': 'form-select d-none', 'size': 8, 'style': 'display:none;'}),
+        }
+        labels = {
+            'subject': '미팅 주제',
+            'start_date': '시작 일시',
+            'end_date': '종료 일시',
+            'all_day': '종일',
+            'participants': '동석자 (복수 선택 가능)',
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        start = cleaned.get('start_date')
+        end = cleaned.get('end_date')
+        all_day = cleaned.get('all_day')
+
+        if all_day:
+            return cleaned
+
+        def _invalid_step(dt):
+            return dt and (dt.minute % 10 != 0 or dt.second != 0 or dt.microsecond != 0)
+
+        if _invalid_step(start):
+            self.add_error('start_date', '10분 단위(분: 00, 10, 20, 30, 40, 50)로 입력해주세요.')
+        if _invalid_step(end):
+            self.add_error('end_date', '10분 단위(분: 00, 10, 20, 30, 40, 50)로 입력해주세요.')
+
+        if start and end and end < start:
+            self.add_error('end_date', '종료 일시는 시작 일시보다 빠를 수 없습니다.')
+
+        return cleaned
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        User = get_user_model()
+        self.fields['participants'].queryset = User.objects.order_by('username')
