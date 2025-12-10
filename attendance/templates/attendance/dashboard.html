@@ -221,13 +221,19 @@
         if (!calendarEl) return;
 
         const decodeNewlines = (value) => {
-            return (value || '')
-                .replace(/\\u000d\\u000a/gi, '\n') // escaped CRLF from escapejs
-                .replace(/\\r\\n/g, '\n')       // escaped CRLF
-                .replace(/\\n/g, '\n')           // escaped LF
-                .replace(/\\r/g, '\n')           // escaped CR
-                .replace(/\r\n/g, '\n')          // actual CRLF
-                .replace(/\r/g, '\n');            // actual CR
+            if (!value) return '';
+            // Try to decode common \uXXXX and escaped newlines from escapejs
+            try {
+                return JSON.parse(`"${value}"`).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            } catch (e) {
+                return (value || '')
+                    .replace(/\\u000d\\u000a/gi, '\n')
+                    .replace(/\\r\\n/g, '\n')
+                    .replace(/\\n/g, '\n')
+                    .replace(/\\r/g, '\n')
+                    .replace(/\r\n/g, '\n')
+                    .replace(/\r/g, '\n');
+            }
         };
 
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
