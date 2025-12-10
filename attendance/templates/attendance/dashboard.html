@@ -45,7 +45,7 @@
 </div>
 
 <!-- 액션 버튼 -->
-<div class="d-flex gap-2 mb-4">
+<div class="d-flex flex-wrap gap-2 mb-4 justify-content-end align-items-center">
     <a href="{% url 'leave_create' %}" class="btn btn-primary">
         <i class="bi bi-plus-circle me-2"></i>휴가 신청
     </a>
@@ -55,7 +55,21 @@
 </div>
 
 <!-- 캘린더 -->
-<div class="card shadow-sm border-0 mb-4">
+<style>
+    /* Dashboard layout tweaks */
+    #calendar { min-height: 520px; }
+    @media (max-width: 768px) {
+        #calendar { min-height: 420px; }
+        #calendar .fc-toolbar.fc-header-toolbar { flex-wrap: wrap; row-gap: .35rem; }
+        #calendar .fc-toolbar-chunk { width: 100%; display: flex; justify-content: center; gap: .35rem; flex-wrap: wrap; }
+        #calendar .fc-toolbar-title { font-size: 1rem; }
+        #calendar .fc-button-group { flex-wrap: wrap; }
+        #calendar .fc-col-header-cell-cushion { padding: 0.35rem 0.25rem; }
+        #calendar .fc-timegrid-slot { height: 32px; }
+        #calendar .fc-event { font-size: 0.9rem; }
+    }
+</style>
+<div class="card shadow-sm border-0 mb-4" id="calendar-card">
     <div class="card-header bg-white d-flex align-items-center justify-content-between">
         <h5 class="mb-0"><i class="bi bi-calendar3-event me-2"></i>승인된 휴가/출장 캘린더</h5>
         <small class="text-muted">파란색/하늘색: 내 일정 · 회색: 다른 인원</small>
@@ -216,13 +230,19 @@
                 .replace(/\r/g, '\n');            // actual CR
         };
 
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
         const calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'timeGridWeek',
+            initialView: isMobile ? 'listWeek' : 'timeGridWeek',
             locale: 'ko',
-            height: 750,
+            height: isMobile ? 'auto' : 750,
             nowIndicator: true,
             slotMinTime: '06:00:00',
-            headerToolbar: {
+            headerToolbar: isMobile ? {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'listWeek,dayGridMonth,timeGridWeek'
+            } : {
                 left: 'prev,next today',
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
