@@ -71,7 +71,13 @@
                         <td>{{ trip.purpose|truncatewords:10 }}</td>
                         <td class="small">
                             <div class="report-snippet">{{ trip.report_content }}</div>
-                            <button type="button" class="btn btn-sm btn-link p-0" data-bs-toggle="modal" data-bs-target="#reportModal" data-report="{{ trip.report_content|escapejs }}" data-title="{{ trip.location|escapejs }} - {{ trip.user.username|escapejs }}">
+                            <button type="button" class="btn btn-sm btn-link p-0"
+                                data-bs-toggle="modal"
+                                data-bs-target="#reportModal"
+                                data-report="{{ trip.report_content|escapejs }}"
+                                data-title="{{ trip.location|escapejs }}"
+                                data-range="{% if trip.all_day %}{{ trip.start_date|date:'Y-m-d' }} (종일){% else %}{{ trip.start_date|date:'Y-m-d H:i' }} ~ {{ trip.end_date|date:'Y-m-d H:i' }}{% endif %}"
+                                data-user="{{ trip.user.username|escapejs }}">
                                 전체 보기
                             </button>
                         </td>
@@ -108,10 +114,27 @@
 <script>
     const reportModal = document.getElementById('reportModal');
     if (reportModal) {
+        const decodeEscaped = (raw) => {
+            if (!raw) return '';
+            try {
+                // Attempt to decode common \uXXXX and newline escapes
+                return JSON.parse(`"${raw}"`);
+            } catch (e) {
+                return raw
+                    .replace(/\\u000d\\u000a/gi, '\n')
+                    .replace(/\\r\\n/g, '\n')
+                    .replace(/\\n/g, '\n')
+                    .replace(/\\r/g, '\n');
+            }
+        };
+
         reportModal.addEventListener('show.bs.modal', function (event) {
             const button = event.relatedTarget;
-            const report = button?.getAttribute('data-report') || '';
-            const title = button?.getAttribute('data-title') || '보고 내용';
+            const report = decodeEscaped(button?.getAttribute('data-report') || '');
+            const loc = button?.getAttribute('data-title') || '';
+            const range = button?.getAttribute('data-range') || '';
+            const user = button?.getAttribute('data-user') || '';
+            const title = `${loc}${range ? ' (' + range + ')' : ''} - ${user}`;
             document.getElementById('reportModalTitle').textContent = title;
             document.getElementById('reportModalBody').textContent = report;
         });
