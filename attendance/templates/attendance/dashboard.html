@@ -239,6 +239,8 @@
             display: 'background',
             color: '#f9dede',
             overlap: false,
+            allDay: false,
+            extendedProps: { isWorkHours: true },
         };
 
         const calendar = new FullCalendar.Calendar(calendarEl, {
@@ -246,7 +248,7 @@
             locale: 'ko',
             height: isMobile ? 'auto' : 750,
             nowIndicator: true,
-            slotMinTime: '06:00:00',
+            slotMinTime: '07:00:00',
             headerToolbar: isMobile ? {
                 left: 'prev,next today',
                 center: 'title',
@@ -259,6 +261,9 @@
             events: [...events, workHoursBackground],
             eventDisplay: 'block',
             eventContent: function(arg) {
+                if (arg.event.extendedProps && arg.event.extendedProps.isWorkHours) {
+                    return { domNodes: [] };
+                }
                 const props = arg.event.extendedProps || {};
                 const badge = props.type === 'trip' ? '출장' : '휴가';
                 const inner = document.createElement('div');
@@ -284,6 +289,9 @@
                 return { domNodes: [inner] };
             },
             eventClick: function(info) {
+                if (info.event.extendedProps && info.event.extendedProps.isWorkHours) {
+                    return; // ignore background event clicks
+                }
                 info.jsEvent.preventDefault();
                 const props = info.event.extendedProps || {};
                 const modal = new bootstrap.Modal(document.getElementById('eventDetailModal'));
