@@ -271,7 +271,9 @@ def dashboard(request):
     leave_summary = _leave_summary_for_user(request.user)
 
     my_leaves = LeaveRequest.objects.filter(user=request.user).order_by('-start_date')
-    my_trips = TripRequest.objects.filter(user=request.user).order_by('-start_date')
+    my_trips = TripRequest.objects.filter(
+        Q(user=request.user) | Q(participants=request.user)
+    ).distinct().order_by('-start_date')
     pending_trip_reports = TripRequest.objects.filter(
         user=request.user,
         status='approved'
