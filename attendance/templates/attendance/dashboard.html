@@ -265,7 +265,8 @@
                     return { domNodes: [] };
                 }
                 const props = arg.event.extendedProps || {};
-                const badge = props.type === 'trip' ? '출장' : '휴가';
+                const isTrip = props.type === 'trip';
+                const badge = isTrip ? '출장' : '휴가';
                 const inner = document.createElement('div');
                 inner.className = 'fc-event-title fc-sticky d-flex align-items-center gap-1';
 
@@ -279,13 +280,15 @@
                 const names = [props.user].concat(companions);
                 people.textContent = names.join(', ');
 
-                const title = document.createElement('span');
-                title.className = 'text-truncate';
-                title.textContent = arg.event.title;
+                if (isTrip && arg.event.title) {
+                    const title = document.createElement('span');
+                    title.className = 'text-truncate';
+                    title.textContent = arg.event.title;
+                    inner.appendChild(title);
+                }
 
                 inner.appendChild(badgeEl);
                 inner.appendChild(people);
-                inner.appendChild(title);
                 return { domNodes: [inner] };
             },
             eventClick: function(info) {
