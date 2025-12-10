@@ -678,7 +678,7 @@ def trip_report_inbox(request):
     start_date = request.GET.get('start_date', '').strip()
     end_date = request.GET.get('end_date', '').strip()
 
-    reports = TripRequest.objects.filter(report_content__isnull=False).exclude(report_content='').select_related('user')
+    reports = TripRequest.objects.filter(report_content__isnull=False).exclude(report_content='').select_related('user').prefetch_related('participants')
 
     if q:
         reports = reports.filter(
