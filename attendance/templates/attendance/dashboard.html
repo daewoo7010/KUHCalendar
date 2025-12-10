@@ -280,21 +280,20 @@
                 badgeEl.className = 'badge bg-light text-dark';
                 badgeEl.textContent = badge;
 
+                inner.appendChild(badgeEl);
                 const people = document.createElement('span');
                 people.className = 'text-truncate';
                 const companions = (props.participants || []).filter(Boolean);
                 const names = [props.user].concat(companions);
                 people.textContent = names.join(', ');
-
-                if (isTrip && arg.event.title) {
-                    const title = document.createElement('span');
-                    title.className = 'text-truncate';
-                    title.textContent = arg.event.title;
-                    inner.appendChild(title);
-                }
-
-                inner.appendChild(badgeEl);
                 inner.appendChild(people);
+
+                if (isTrip) {
+                    const location = document.createElement('span');
+                    location.className = 'text-truncate';
+                    location.textContent = props.location || arg.event.title || '';
+                    inner.appendChild(location);
+                }
                 return { domNodes: [inner] };
             },
             eventClick: function(info) {
