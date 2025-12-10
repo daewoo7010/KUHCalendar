@@ -24,7 +24,7 @@ class LeaveBalance(models.Model):
 
 
 class LeaveRequest(models.Model):
-    LEAVE_TYPES = [('연차', '연차'), ('반차', '반차'), ('병가', '병가'), ('기타', '기타')]
+    LEAVE_TYPES = [('연차', '연차'), ('오전반차', '오전반차'), ('오후반차', '오후반차'), ('병가', '병가'), ('기타', '기타')]
     STATUS_CHOICES = [('pending', '대기'), ('approved', '승인'), ('rejected', '반려')]
 
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
@@ -39,7 +39,7 @@ class LeaveRequest(models.Model):
     def save(self, *args, **kwargs):
         # 휴가 일수 자동 계산 로직 (주말 제외)
         if self.start_date and self.end_date:
-            if self.leave_type == '반차':
+            if self.leave_type in ('반차', '오전반차', '오후반차'):
                 self.days = 0.5
             else:
                 day_count = 0

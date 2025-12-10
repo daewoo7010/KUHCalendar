@@ -94,7 +94,7 @@
             const listId = `${fieldName}-time-options`;
             const dataList = document.createElement('datalist');
             dataList.id = listId;
-            for (let h = 0; h < 24; h++) {
+            for (let h = 7; h < 24; h++) {
                 for (let m = 0; m < 60; m += 10) {
                     const hh = pad(h); const mm = pad(m);
                     const opt = document.createElement('option');

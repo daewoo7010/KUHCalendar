@@ -275,16 +275,12 @@
                 }
                 const props = arg.event.extendedProps || {};
                 const typeLabel = props.type === 'trip' ? '출장' : props.type === 'meeting' ? '미팅' : '휴가';
-                const iconClass = props.type === 'trip' ? 'bi-airplane' : props.type === 'meeting' ? 'bi-people-fill' : 'bi-calendar-event';
                 const inner = document.createElement('div');
                 inner.className = 'fc-event-title fc-sticky d-flex align-items-center gap-1';
 
                 const badgeEl = document.createElement('span');
-                badgeEl.className = 'badge bg-light text-dark d-flex align-items-center gap-1';
-                const iconEl = document.createElement('i');
-                iconEl.className = `bi ${iconClass}`;
-                badgeEl.appendChild(iconEl);
-                badgeEl.appendChild(document.createTextNode(typeLabel));
+                badgeEl.className = 'badge bg-light text-dark';
+                badgeEl.textContent = typeLabel;
 
                 inner.appendChild(badgeEl);
                 const people = document.createElement('span');
