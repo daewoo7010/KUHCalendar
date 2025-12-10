@@ -653,6 +653,14 @@ def admin_user_management(request):
             target.save(update_fields=['password'])
             messages.success(request, f"{target.username}의 비밀번호를 재설정했습니다: {new_pw}")
 
+        elif action == 'delete':
+            if target == request.user:
+                messages.warning(request, '본인 계정은 삭제할 수 없습니다.')
+            else:
+                username = target.username
+                target.delete()
+                messages.success(request, f"{username} 계정을 삭제했습니다.")
+
         return redirect('admin_users')
 
     users = User.objects.all().order_by('username')
