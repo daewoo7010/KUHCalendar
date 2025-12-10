@@ -4,6 +4,38 @@
     <h4 class="mb-0"><i class="bi bi-inbox me-2"></i>출장 보고함</h4>
     <span class="text-muted">보고서 건수: {{ reports|length }}</span>
 </div>
+<form method="get" class="card shadow-sm border-0 mb-3">
+    <div class="card-body row g-2 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label mb-1 small text-muted">작성자 검색</label>
+            <input type="text" name="q" value="{{ filter_q }}" class="form-control" placeholder="이름 또는 아이디">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label mb-1 small text-muted">시작일</label>
+            <input type="date" name="start_date" value="{{ filter_start_date }}" class="form-control">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label mb-1 small text-muted">종료일</label>
+            <input type="date" name="end_date" value="{{ filter_end_date }}" class="form-control">
+        </div>
+        <div class="col-md-2 d-grid gap-2">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>필터</button>
+            <a href="{% url 'trip_report_inbox' %}" class="btn btn-outline-secondary">초기화</a>
+        </div>
+    </div>
+</form>
+
+<style>
+    .report-snippet {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        max-height: 3.2em;
+        line-height: 1.6em;
+    }
+</style>
+
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -37,7 +69,12 @@
                             {% endif %}
                         </td>
                         <td>{{ trip.purpose|truncatewords:10 }}</td>
-                        <td class="small">{{ trip.report_content|linebreaksbr }}</td>
+                        <td class="small">
+                            <div class="report-snippet">{{ trip.report_content }}</div>
+                            <button type="button" class="btn btn-sm btn-link p-0" data-bs-toggle="modal" data-bs-target="#reportModal" data-report="{{ trip.report_content|escapejs }}" data-title="{{ trip.location|escapejs }} - {{ trip.user.username|escapejs }}">
+                                전체 보기
+                            </button>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="5" class="text-center text-muted py-4">등록된 출장 보고가 없습니다.</td></tr>
@@ -47,4 +84,38 @@
         </div>
     </div>
 </div>
+
+<!-- Report Modal -->
+<div class="modal fade" id="reportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-text me-2"></i><span id="reportModalTitle">보고 내용</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <pre class="mb-0" id="reportModalBody" style="white-space: pre-wrap; font-family: inherit;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_scripts %}
+{{ block.super }}
+<script>
+    const reportModal = document.getElementById('reportModal');
+    if (reportModal) {
+        reportModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const report = button?.getAttribute('data-report') || '';
+            const title = button?.getAttribute('data-title') || '보고 내용';
+            document.getElementById('reportModalTitle').textContent = title;
+            document.getElementById('reportModalBody').textContent = report;
+        });
+    }
+</script>
+{% endblock %}
 {% endblock %}

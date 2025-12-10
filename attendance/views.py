@@ -672,8 +672,39 @@ def trip_report_inbox(request):
     if not (_is_trip_recipient(request.user) or _user_in_groups(request.user, [ADMIN_GROUP])):
         return HttpResponseForbidden('보고서 열람 권한이 필요합니다.')
 
-    reports = TripRequest.objects.filter(report_content__isnull=False).exclude(report_content='').select_related('user').order_by('-start_date')
-    return render(request, 'attendance/trip_report_inbox.html', {'reports': reports})
+    q = request.GET.get('q', '').strip()
+    start_date = request.GET.get('start_date', '').strip()
+    end_date = request.GET.get('end_date', '').strip()
+
+    reports = TripRequest.objects.filter(report_content__isnull=False).exclude(report_content='').select_related('user')
+
+    if q:
+        reports = reports.filter(
+            Q(user__username__icontains=q) |
+            Q(user__first_name__icontains=q) |
+            Q(user__last_name__icontains=q)
+        )
+
+    if start_date:
+        try:
+            reports = reports.filter(start_date__date__gte=timezone.datetime.strptime(start_date, '%Y-%m-%d').date())
+        except ValueError:
+            messages.warning(request, '시작일 형식이 올바르지 않습니다. YYYY-MM-DD로 입력해주세요.')
+
+    if end_date:
+        try:
+            reports = reports.filter(end_date__date__lte=timezone.datetime.strptime(end_date, '%Y-%m-%d').date())
+        except ValueError:
+            messages.warning(request, '종료일 형식이 올바르지 않습니다. YYYY-MM-DD로 입력해주세요.')
+
+    reports = reports.order_by('-start_date')
+
+    return render(request, 'attendance/trip_report_inbox.html', {
+        'reports': reports,
+        'filter_q': q,
+        'filter_start_date': start_date,
+        'filter_end_date': end_date,
+    })
 
 
 @login_required
