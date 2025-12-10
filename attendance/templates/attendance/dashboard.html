@@ -232,6 +232,15 @@
 
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
+        const workHoursBackground = {
+            daysOfWeek: [1, 2, 3, 4, 5],
+            startTime: '09:00',
+            endTime: '18:00',
+            display: 'background',
+            color: '#f9dede',
+            overlap: false,
+        };
+
         const calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: isMobile ? 'listWeek' : 'timeGridWeek',
             locale: 'ko',
@@ -247,7 +256,7 @@
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
             },
-            events: events,
+            events: [...events, workHoursBackground],
             eventDisplay: 'block',
             eventContent: function(arg) {
                 const props = arg.event.extendedProps || {};
