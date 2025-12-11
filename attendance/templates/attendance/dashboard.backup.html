@@ -33,6 +33,15 @@
             </div>
         </div>
     </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card shadow-sm border-0">
+            <div class="card-body text-center">
+                <i class="bi bi-clipboard2-check text-danger fs-1"></i>
+                <h5 class="card-title mt-2">외부일정/출장 보고 필요</h5>
+                <h2 class="text-danger">{{ pending_trip_reports }}건</h2>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- 액션 버튼 -->
@@ -151,6 +160,7 @@
                         <th>목적</th>
                         <th>신청자/동석자</th>
                         <th>상태</th>
+                        <th>보고</th>
                         <th class="text-end">관리</th>
                     </tr>
                 </thead>
@@ -185,6 +195,14 @@
                             {% endif %}
                         </td>
                         <td>
+                            {% if trip.status == 'approved' %}
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#tripReportModal" data-trip-id="{{ trip.id }}" data-trip-location="{{ trip.location }}" data-trip-range="{{ trip.start_date|date:'Y-m-d H:i' }} ~ {{ trip.end_date|date:'Y-m-d H:i' }}" data-trip-purpose="{{ trip.purpose|escapejs }}" data-trip-report="{{ trip.report_content|default_if_none:''|escapejs }}">
+                                    <i class="bi bi-pencil-square me-1"></i>{% if trip.report_content %}확인/수정{% else %}보고 작성{% endif %}
+                                </button>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td class="text-end">
                             <a class="btn btn-sm btn-outline-secondary me-1" href="{% url 'trip_update' trip.id %}"><i class="bi bi-pencil"></i></a>
                             <form method="post" action="{% url 'trip_delete' trip.id %}" class="d-inline" onsubmit="return confirm('이 출장 신청을 삭제할까요?');">
@@ -194,7 +212,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-center text-muted py-4">신청 내역이 없습니다.</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted py-4">신청 내역이 없습니다.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

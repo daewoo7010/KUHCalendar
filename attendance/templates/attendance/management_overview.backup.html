@@ -55,6 +55,7 @@
                         <th>입사일</th>
                         <th>연차 소진율</th>
                         <th>연차 초기화 일자</th>
+                        <th>1개월 평균 외부일정/출장 횟수</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -69,9 +70,10 @@
                         <td>{% if u.missing_join_date %}<span class="badge bg-danger-subtle text-danger">미입력</span>{% else %}{{ u.join_date|date:'Y-m-d' }}{% endif %}</td>
                         <td>{{ u.usage_rate|floatformat:1 }}%</td>
                         <td>{% if u.reset_date %}{{ u.reset_date|date:'Y-m-d' }}{% else %}-{% endif %}</td>
+                        <td>{{ u.external_30d }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="9" class="text-center text-muted py-4">데이터가 없습니다.</td></tr>
+                    <tr><td colspan="10" class="text-center text-muted py-4">데이터가 없습니다.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
