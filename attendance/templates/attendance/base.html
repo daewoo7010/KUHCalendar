@@ -42,6 +42,18 @@
                 border-color: var(--main-red-light);
                 box-shadow: none;
             }
+            /* Mobile table scroll helper */
+            @media (max-width: 576px) {
+                .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+                .table-responsive > table { min-width: 640px; }
+            }
+            /* Mobile navbar alignment */
+            @media (max-width: 576px) {
+                .navbar .container-fluid { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+                .navbar-brand { width: 100%; text-align: center; }
+                .quick-links { justify-content: center; width: 100%; }
+                .navbar .dropdown { align-self: flex-end; }
+            }
     </style>
 </head>
 <body>
