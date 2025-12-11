@@ -9,6 +9,7 @@ urlpatterns = [
     path('leave/<int:leave_id>/delete/', views.leave_delete, name='leave_delete'),
     path('trip/new/', views.trip_create, name='trip_create'),
     path('meeting/new/', views.meeting_create, name='meeting_create'),
+    path('personal/new/', views.personal_create, name='personal_create'),
     path('trip/<int:trip_id>/edit/', views.trip_update, name='trip_update'),
     path('trip/<int:trip_id>/delete/', views.trip_delete, name='trip_delete'),
     path('trip/report/<int:trip_id>/', views.trip_report, name='trip_report'),

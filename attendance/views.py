@@ -18,8 +18,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.urls import reverse
 
-from .forms import LeaveForm, SignUpForm, TripForm, TripReportForm, MeetingForm
-from .models import LeaveApprovalStep, LeaveBalance, LeaveRequest, TripReportRecipient, TripRequest, Meeting
+from .forms import LeaveForm, SignUpForm, TripForm, TripReportForm, MeetingForm, PersonalEventForm
+from .models import LeaveApprovalStep, LeaveBalance, LeaveRequest, TripReportRecipient, TripRequest, Meeting, PersonalEvent
 
 ADMIN_GROUP = '관리자'
 ROLE_GROUPS = ['관리자', '휴가 결재권자', '출장 결재권자', '경영관리부']
@@ -271,7 +271,7 @@ def dashboard(request):
     leave_summary = _leave_summary_for_user(request.user)
     today = timezone.localdate()
     week_end = today + timedelta(days=6)
-    weekly_highlights = {'leave': [], 'trip': [], 'meeting': []}
+    weekly_highlights = {'leave': [], 'trip': [], 'meeting': [], 'personal': []}
 
     my_leaves = LeaveRequest.objects.filter(user=request.user).order_by('-start_date')
     my_trips = TripRequest.objects.filter(
@@ -391,11 +391,42 @@ def dashboard(request):
             },
         })
 
+    personal_qs = PersonalEvent.objects.filter(user=request.user)
+    for p in personal_qs:
+        is_all_day = getattr(p, 'all_day', False)
+        start_dt = timezone.localtime(p.start_date)
+        end_dt = timezone.localtime(p.end_date)
+        color = '#be4bdb'
+        if start_dt.date() <= week_end and end_dt.date() >= today:
+            weekly_highlights['personal'].append({
+                'title': p.title,
+                'detail': f"{start_dt.strftime('%m-%d')}" + (" 종일" if is_all_day else f" {start_dt.strftime('%H:%M')}") + (f" ~ {end_dt.strftime('%m-%d %H:%M')}" if not is_all_day else ''),
+                'order': start_dt,
+            })
+        calendar_events.append({
+            'title': p.title,
+            'start': start_dt.date().isoformat() if is_all_day else start_dt.isoformat(),
+            'end': (end_dt.date() + timedelta(days=1)).isoformat() if is_all_day else end_dt.isoformat(),
+            'allDay': is_all_day,
+            'backgroundColor': color,
+            'borderColor': color,
+            'extendedProps': {
+                'type': 'personal',
+                'id': p.id,
+                'user': p.user.username,
+                'range': f"{start_dt.strftime('%Y-%m-%d %p %I:%M')} ~ {end_dt.strftime('%Y-%m-%d %p %I:%M')}",
+                'purpose': p.description or p.title,
+                'mine': True,
+                'title': p.title,
+                'location': p.location,
+            },
+        })
+
     for key in weekly_highlights:
         weekly_highlights[key] = sorted(weekly_highlights[key], key=lambda x: x.get('order'))
 
-    type_labels = {'leave': '휴가', 'trip': '외부일정', 'meeting': '미팅'}
-    type_colors = {'leave': '#4c6ef5', 'trip': '#0dcaf0', 'meeting': '#20c997'}
+    type_labels = {'leave': '휴가', 'trip': '외부일정', 'meeting': '미팅', 'personal': '개인'}
+    type_colors = {'leave': '#4c6ef5', 'trip': '#0dcaf0', 'meeting': '#20c997', 'personal': '#be4bdb'}
     grouped_highlights = {}
     for key, items in weekly_highlights.items():
         for item in items:
@@ -483,6 +514,22 @@ def meeting_create(request):
     else:
         form = MeetingForm()
     return render(request, 'attendance/meeting_form.html', {'form': form})
+
+
+@login_required
+def personal_create(request):
+    if request.method == 'POST':
+        form = PersonalEventForm(request.POST)
+        if form.is_valid():
+            personal = form.save(commit=False)
+            personal.user = request.user
+            _normalize_all_day_event(personal)
+            personal.save()
+            messages.success(request, '개인일정이 등록되었습니다.')
+            return redirect('dashboard')
+    else:
+        form = PersonalEventForm()
+    return render(request, 'attendance/personal_form.html', {'form': form})
 
 
 @login_required

@@ -61,10 +61,20 @@
                             <div class="text-muted">없음</div>
                         {% endif %}
                     </div>
-                    <div>
+                    <div class="mb-2">
                         <div class="fw-semibold text-success">미팅</div>
                         {% if weekly_highlights.meeting %}
                             {% for item in weekly_highlights.meeting %}
+                                <div class="text-truncate" data-item-title="{{ item.title }}" data-item-detail="{{ item.detail }}" onclick="showHighlightDetail(this)">{{ item.title }} <span class="text-muted">{{ item.detail }}</span></div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-muted">없음</div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div class="fw-semibold" style="color:#be4bdb;">개인일정</div>
+                        {% if weekly_highlights.personal %}
+                            {% for item in weekly_highlights.personal %}
                                 <div class="text-truncate" data-item-title="{{ item.title }}" data-item-detail="{{ item.detail }}" onclick="showHighlightDetail(this)">{{ item.title }} <span class="text-muted">{{ item.detail }}</span></div>
                             {% endfor %}
                         {% else %}
@@ -87,6 +97,9 @@
     </a>
     <a href="{% url 'meeting_create' %}" class="btn btn-outline-success">
         <i class="bi bi-people-fill me-2"></i>미팅 추가
+    </a>
+    <a href="{% url 'personal_create' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-person-fill me-2"></i>개인일정 추가
     </a>
 </div>
 

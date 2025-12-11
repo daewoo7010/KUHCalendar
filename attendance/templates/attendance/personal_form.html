@@ -1,0 +1,124 @@
+{% extends 'attendance/base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card shadow-sm border-0 form-card">
+            <div class="card-header bg-purple text-white" style="background-color:#be4bdb;">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-fill me-2"></i>개인일정 추가
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    {% for field in form %}
+                    <div class="mb-3">
+                        {% if field.name == 'all_day' %}
+                        <div class="form-check">
+                            {{ field }}
+                            <label class="form-check-label fw-bold" for="id_{{ field.name }}">{{ field.label }}</label>
+                        </div>
+                        {% else %}
+                        <label class="form-label fw-bold" for="id_{{ field.name }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% endif %}
+                        {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                        {% if field.errors %}
+                        <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    <div class="d-flex gap-2 mt-4 form-actions">
+                        <button type="submit" class="btn" style="background-color:#be4bdb; color:#fff;">
+                            <i class="bi bi-check-circle me-2"></i>등록하기
+                        </button>
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-2"></i>취소
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const pad = (n) => String(n).padStart(2, '0');
+
+        document.querySelectorAll('input[type="datetime-local"]').forEach((hiddenInput) => {
+            const fieldName = hiddenInput.getAttribute('name');
+
+            let datePart = '';
+            let timePart = '09:00';
+            if (hiddenInput.value) {
+                const [d, t] = hiddenInput.value.split('T');
+                datePart = d;
+                if (t) timePart = t.slice(0,5);
+            }
+
+            const dateInput = document.createElement('input');
+            dateInput.type = 'date';
+            dateInput.className = 'form-control mb-2';
+            dateInput.value = datePart;
+
+            const timeInput = document.createElement('input');
+            timeInput.type = 'time';
+            timeInput.className = 'form-control';
+            timeInput.step = '600';
+            timeInput.value = timePart;
+
+            const listId = `${fieldName}-time-options`;
+            const dataList = document.createElement('datalist');
+            dataList.id = listId;
+            for (let h = 7; h < 24; h++) {
+                for (let m = 0; m < 60; m += 10) {
+                    const hh = pad(h); const mm = pad(m);
+                    const opt = document.createElement('option');
+                    opt.value = `${hh}:${mm}`;
+                    dataList.appendChild(opt);
+                }
+            }
+            timeInput.setAttribute('list', listId);
+
+            const sync = () => {
+                if (!dateInput.value || !timeInput.value) return;
+                hiddenInput.value = `${dateInput.value}T${timeInput.value}`;
+            };
+            dateInput.addEventListener('change', sync);
+            timeInput.addEventListener('change', sync);
+            timeInput.addEventListener('blur', sync);
+
+            hiddenInput.type = 'hidden';
+            hiddenInput.parentNode.insertBefore(dateInput, hiddenInput);
+            hiddenInput.parentNode.insertBefore(timeInput, hiddenInput);
+            hiddenInput.parentNode.insertBefore(dataList, hiddenInput);
+            sync();
+        });
+
+        const allDayCheckbox = document.querySelector('#id_all_day');
+        if (allDayCheckbox) {
+            const timeControls = document.querySelectorAll('input[type="time"], datalist');
+            const toggleTime = () => {
+                timeControls.forEach(el => {
+                    el.closest('div')?.classList.toggle('d-none', allDayCheckbox.checked && el.tagName !== 'DATALIST');
+                    if (el.type === 'time') {
+                        el.disabled = allDayCheckbox.checked;
+                    }
+                });
+            };
+            allDayCheckbox.addEventListener('change', toggleTime);
+            toggleTime();
+        }
+    });
+</script>
+<style>
+    @media (max-width: 576px) {
+        .form-card .card-body { padding: 1.25rem; }
+        .form-actions { flex-direction: column; align-items: stretch; }
+        .form-actions .btn { width: 100%; justify-content: center; }
+    }
+</style>
+{% endblock %}
