@@ -82,7 +82,9 @@
         .stat-card h5 { font-size: 0.95rem; }
         #calendar { overflow-x: auto; }
         #calendar .fc .fc-list, #calendar .fc-list-table { width: 100% !important; }
-        #calendar .fc-list-event-title, #calendar .fc-list-event .fc-list-event-title a { white-space: normal; }
+        #calendar .fc-list-event-title, #calendar .fc-list-event .fc-list-event-title a { white-space: normal; word-break: break-word; line-height: 1.35; }
+        #calendar .fc-list-event-time { white-space: nowrap; font-size: 0.85rem; }
+        #calendar .fc-list-event-graphic { display: none; }
     }
 </style>
 <div class="card shadow-sm border-0 mb-4" id="calendar-card">
