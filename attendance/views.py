@@ -269,6 +269,9 @@ def dashboard(request):
         leave_balance = LeaveBalance(user=request.user, total_leave=15, used_leave=0)
 
     leave_summary = _leave_summary_for_user(request.user)
+    today = timezone.localdate()
+    week_end = today + timedelta(days=6)
+    weekly_highlights = {'leave': [], 'trip': [], 'meeting': []}
 
     my_leaves = LeaveRequest.objects.filter(user=request.user).order_by('-start_date')
     my_trips = TripRequest.objects.filter(
@@ -285,6 +288,12 @@ def dashboard(request):
     for leave in leave_qs:
         mine = leave.user_id == request.user.id
         color = '#4c6ef5' if mine else '#adb5bd'
+        if mine and leave.start_date <= week_end and leave.end_date >= today:
+            weekly_highlights['leave'].append({
+                'title': leave.leave_type,
+                'detail': f"{leave.start_date.strftime('%m-%d')} ~ {leave.end_date.strftime('%m-%d')}",
+                'order': leave.start_date,
+            })
         calendar_events.append({
             'title': leave.reason if leave.reason else leave.leave_type,
             'start': leave.start_date.isoformat(),
@@ -317,6 +326,12 @@ def dashboard(request):
         start_dt = timezone.localtime(trip.start_date)
         end_dt = timezone.localtime(trip.end_date)
         participant_names = [p.username for p in trip.participants.all()]
+        if mine_for_color and start_dt.date() <= week_end and end_dt.date() >= today:
+            weekly_highlights['trip'].append({
+                'title': trip.location or trip.purpose,
+                'detail': f"{start_dt.strftime('%m-%d')}" + (" 종일" if is_all_day else f" {start_dt.strftime('%H:%M')}") + (f" ~ {end_dt.strftime('%m-%d %H:%M')}" if not is_all_day else ''),
+                'order': start_dt,
+            })
         calendar_events.append({
             'title': trip.location,
             'start': start_dt.date().isoformat() if is_all_day else start_dt.isoformat(),
@@ -351,6 +366,12 @@ def dashboard(request):
         start_dt = timezone.localtime(meeting.start_date)
         end_dt = timezone.localtime(meeting.end_date)
         participant_names = [p.username for p in meeting.participants.all()]
+        if mine_for_color and start_dt.date() <= week_end and end_dt.date() >= today:
+            weekly_highlights['meeting'].append({
+                'title': meeting.subject,
+                'detail': f"{start_dt.strftime('%m-%d')}" + (" 종일" if is_all_day else f" {start_dt.strftime('%H:%M')}") + (f" ~ {end_dt.strftime('%m-%d %H:%M')}" if not is_all_day else ''),
+                'order': start_dt,
+            })
         calendar_events.append({
             'title': meeting.subject,
             'start': start_dt.date().isoformat() if is_all_day else start_dt.isoformat(),
@@ -370,6 +391,9 @@ def dashboard(request):
             },
         })
 
+    for key in weekly_highlights:
+        weekly_highlights[key] = sorted(weekly_highlights[key], key=lambda x: x.get('order'))[:5]
+
     return render(request, 'attendance/dashboard.html', {
         'leave_balance': leave_balance,
         'leave_summary': leave_summary,
@@ -377,6 +401,8 @@ def dashboard(request):
         'my_trips': my_trips,
         'pending_trip_reports': pending_trip_reports,
         'calendar_events_json': json.dumps(calendar_events, ensure_ascii=False),
+        'weekly_highlights': weekly_highlights,
+        'week_range_label': f"{today.strftime('%m/%d')} ~ {week_end.strftime('%m/%d')}",
     })
 
 

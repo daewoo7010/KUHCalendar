@@ -33,6 +33,48 @@
             </div>
         </div>
     </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="text-muted">금주 주요 일정</div>
+                    <small class="text-muted">{{ week_range_label }}</small>
+                </div>
+                <div class="small">
+                    <div class="mb-2">
+                        <div class="fw-semibold text-primary">휴가</div>
+                        {% if weekly_highlights.leave %}
+                            {% for item in weekly_highlights.leave %}
+                                <div class="text-truncate">{{ item.title }} <span class="text-muted">{{ item.detail }}</span></div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-muted">없음</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-2">
+                        <div class="fw-semibold text-info">외부일정</div>
+                        {% if weekly_highlights.trip %}
+                            {% for item in weekly_highlights.trip %}
+                                <div class="text-truncate">{{ item.title }} <span class="text-muted">{{ item.detail }}</span></div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-muted">없음</div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div class="fw-semibold text-success">미팅</div>
+                        {% if weekly_highlights.meeting %}
+                            {% for item in weekly_highlights.meeting %}
+                                <div class="text-truncate">{{ item.title }} <span class="text-muted">{{ item.detail }}</span></div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-muted">없음</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- 액션 버튼 -->
@@ -150,7 +192,6 @@
                         <th>장소</th>
                         <th>목적</th>
                         <th>신청자/동석자</th>
-                        <th>상태</th>
                         <th class="text-end">관리</th>
                     </tr>
                 </thead>
@@ -175,16 +216,6 @@
                                 {% endif %}
                             {% endwith %}
                         </td>
-                        <td>
-                            {% if trip.status == 'pending' %}
-                                <span class="badge bg-warning">대기</span>
-                            {% elif trip.status == 'approved' %}
-                                <span class="badge {% if trip.status == 'approved' and not trip.report_content %}bg-danger-subtle text-danger{% else %}bg-success{% endif %}">승인{% if trip.status == 'approved' and not trip.report_content %}·보고 필요{% endif %}</span>
-                            {% else %}
-                                <span class="badge bg-danger">반려</span>
-                            {% endif %}
-                        </td>
-                        <td>
                         <td class="text-end">
                             <a class="btn btn-sm btn-outline-secondary me-1" href="{% url 'trip_update' trip.id %}"><i class="bi bi-pencil"></i></a>
                             <form method="post" action="{% url 'trip_delete' trip.id %}" class="d-inline" onsubmit="return confirm('이 출장 신청을 삭제할까요?');">
@@ -194,7 +225,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-center text-muted py-4">신청 내역이 없습니다.</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted py-4">신청 내역이 없습니다.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -285,8 +316,9 @@
                 const people = document.createElement('span');
                 people.className = 'text-truncate';
                 const companions = (props.participants || []).filter(Boolean);
-                const names = [props.user].concat(companions);
-                people.textContent = names.join(', ');
+                const names = [props.user].concat(companions).filter(Boolean);
+                const initials = names.map(n => n.trim().charAt(0)).filter(Boolean);
+                people.textContent = initials.join(', ');
                 inner.appendChild(people);
 
                 if (props.type === 'trip') {
