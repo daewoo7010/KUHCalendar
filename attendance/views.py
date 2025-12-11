@@ -587,6 +587,16 @@ def management_overview(request):
     User = get_user_model()
     users = User.objects.all().order_by('username')
 
+    window_start = timezone.now() - timedelta(days=30)
+    trip_counts = TripRequest.objects.filter(status='approved', start_date__gte=window_start).values('user_id').annotate(cnt=models.Count('id'))
+    meeting_counts = Meeting.objects.filter(start_date__gte=window_start).values('user_id').annotate(cnt=models.Count('id'))
+
+    external_map = {}
+    for row in trip_counts:
+        external_map[row['user_id']] = external_map.get(row['user_id'], 0) + row['cnt']
+    for row in meeting_counts:
+        external_map[row['user_id']] = external_map.get(row['user_id'], 0) + row['cnt']
+
     user_rows = []
     total_leave = 0
     total_used = 0
@@ -611,6 +621,7 @@ def management_overview(request):
             'join_date': summary['join_date'],
             'usage_rate': summary['usage_rate'],
             'reset_date': summary['reset_date'],
+            'external_30d': external_map.get(u.id, 0),
         })
 
     leaves = LeaveRequest.objects.filter(status='approved').select_related('user').order_by('-start_date')[:50]
