@@ -589,13 +589,8 @@ def management_overview(request):
 
     window_start = timezone.now() - timedelta(days=30)
     trip_counts = TripRequest.objects.filter(status='approved', start_date__gte=window_start).values('user_id').annotate(cnt=models.Count('id'))
-    meeting_counts = Meeting.objects.filter(start_date__gte=window_start).values('user_id').annotate(cnt=models.Count('id'))
 
-    external_map = {}
-    for row in trip_counts:
-        external_map[row['user_id']] = external_map.get(row['user_id'], 0) + row['cnt']
-    for row in meeting_counts:
-        external_map[row['user_id']] = external_map.get(row['user_id'], 0) + row['cnt']
+    external_map = {row['user_id']: row['cnt'] for row in trip_counts}
 
     user_rows = []
     total_leave = 0
