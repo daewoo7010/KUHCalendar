@@ -332,6 +332,9 @@
 
                 inner.appendChild(badgeEl);
                 if (props.type === 'personal') {
+                    inner.style.color = '#fff';
+                    badgeEl.style.backgroundColor = 'rgba(255,255,255,0.25)';
+                    badgeEl.style.color = '#fff';
                     const location = document.createElement('span');
                     location.className = 'text-truncate';
                     location.textContent = props.location || arg.event.title || '';
@@ -339,7 +342,8 @@
 
                     if (props.purpose) {
                         const memo = document.createElement('span');
-                        memo.className = 'text-truncate text-muted';
+                        memo.className = 'text-truncate';
+                        memo.style.color = '#e9ecef';
                         memo.textContent = props.purpose;
                         inner.appendChild(memo);
                     }
@@ -397,22 +401,32 @@
                 const editLink = document.getElementById('modalEventEdit');
                 const deleteForm = document.getElementById('modalEventDeleteForm');
                 const deleteType = document.getElementById('modalEventDeleteType');
-                if (props.canManage) {
+                const hasEdit = !!props.editUrl;
+                const hasDelete = !!props.deleteUrl;
+
+                if (props.canManage && (hasEdit || hasDelete)) {
                     actionRow.classList.remove('d-none');
-                    if (props.type === 'trip') {
+                    if (hasEdit) {
                         editLink.classList.remove('d-none');
-                        editLink.href = props.editUrl || '#';
-                        deleteType.textContent = '출장 삭제';
+                        editLink.href = props.editUrl;
                     } else {
                         editLink.classList.add('d-none');
                         editLink.removeAttribute('href');
-                        deleteType.textContent = '휴가 삭제';
                     }
-                    deleteForm.action = props.deleteUrl || '#';
+
+                    if (hasDelete) {
+                        deleteForm.classList.remove('d-none');
+                        deleteForm.action = props.deleteUrl;
+                        deleteType.textContent = props.type === 'trip' ? '출장 삭제' : props.type === 'personal' ? '개인 일정 삭제' : '휴가 삭제';
+                    } else {
+                        deleteForm.classList.add('d-none');
+                        deleteForm.action = '#';
+                    }
                 } else {
                     actionRow.classList.add('d-none');
                     editLink.classList.add('d-none');
                     editLink.removeAttribute('href');
+                    deleteForm.classList.add('d-none');
                     deleteForm.action = '#';
                 }
 

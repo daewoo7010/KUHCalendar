@@ -420,6 +420,9 @@ def dashboard(request):
                 'mine': True,
                 'title': p.title,
                 'location': p.location,
+                'canManage': True,
+                'editUrl': reverse('personal_update', args=[p.id]),
+                'deleteUrl': reverse('personal_delete', args=[p.id]),
             },
         })
 
@@ -530,7 +533,35 @@ def personal_create(request):
             return redirect('dashboard')
     else:
         form = PersonalEventForm()
-    return render(request, 'attendance/personal_form.html', {'form': form})
+    return render(request, 'attendance/personal_form.html', {'form': form, 'is_edit': False})
+
+
+@login_required
+def personal_update(request, pk):
+    personal = get_object_or_404(PersonalEvent, pk=pk, user=request.user)
+    if request.method == 'POST':
+        form = PersonalEventForm(request.POST, instance=personal)
+        if form.is_valid():
+            personal = form.save(commit=False)
+            personal.user = request.user
+            _normalize_all_day_event(personal)
+            personal.save()
+            messages.success(request, '개인 일정이 수정되었습니다.')
+            return redirect('dashboard')
+    else:
+        form = PersonalEventForm(instance=personal)
+    return render(request, 'attendance/personal_form.html', {'form': form, 'is_edit': True})
+
+
+@login_required
+def personal_delete(request, pk):
+    personal = get_object_or_404(PersonalEvent, pk=pk, user=request.user)
+    if request.method == 'POST':
+        personal.delete()
+        messages.success(request, '개인 일정이 삭제되었습니다.')
+    else:
+        messages.error(request, '잘못된 요청입니다.')
+    return redirect('dashboard')
 
 
 @login_required
