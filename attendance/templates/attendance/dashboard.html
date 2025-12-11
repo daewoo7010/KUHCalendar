@@ -399,17 +399,22 @@
                 if (!grouped || grouped.length === 0) {
                     modalBody.innerHTML = '<div class="text-muted">주요 일정이 없습니다.</div>';
                 } else {
-                    modalBody.innerHTML = grouped.map(day => {
-                        const items = (day.items || []).map(item => `
-                            <div class="d-flex align-items-start gap-2">
-                                <div class="badge text-bg-light border" style="border-color:${item.color || '#dee2e6'}; color:${item.color || '#6c757d'}">${item.type || ''}</div>
-                                <div class="flex-fill text-start">
-                                    <div>${item.title || ''}</div>
-                                    <div class="text-muted small">${item.detail || ''}</div>
+                    modalBody.innerHTML = grouped.map((day, idx) => {
+                        const items = (day.items || []).map(item => {
+                            const color = item.color || '#6c757d';
+                            const bg = `${color}1a`; // light tint
+                            return `
+                                <div class="d-flex align-items-start gap-2 p-2 rounded-2 border" style="border-color:${color}33; background:${bg};">
+                                    <div class="badge" style="background:${color}; color:#fff;">${item.type || ''}</div>
+                                    <div class="flex-fill text-start">
+                                        <div class="fw-semibold">${item.title || ''}</div>
+                                        <div class="text-muted small">${item.detail || ''}</div>
+                                    </div>
                                 </div>
-                            </div>
-                        `).join('');
-                        return `<div class="mb-3 text-start"><div class="fw-bold mb-1">${day.label}</div>${items}</div>`;
+                            `;
+                        }).join('');
+                        const divider = idx < grouped.length - 1 ? '<hr class="my-3">' : '';
+                        return `<div class="text-start"><div class="fw-bold mb-2">${day.label}</div>${items}${divider}</div>`;
                     }).join('');
                 }
             }
