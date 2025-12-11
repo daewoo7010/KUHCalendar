@@ -410,6 +410,7 @@ def dashboard(request):
             'allDay': is_all_day,
             'backgroundColor': color,
             'borderColor': color,
+            'textColor': '#ffffff',
             'extendedProps': {
                 'type': 'personal',
                 'id': p.id,
