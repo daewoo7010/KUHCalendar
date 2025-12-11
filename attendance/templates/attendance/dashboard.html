@@ -298,6 +298,7 @@
         };
 
         const typeLabelMap = { trip: '외부', meeting: '미팅', personal: '개인', leave: '휴가' };
+        const typeColorMap = { trip: '#0dcaf0', meeting: '#20c997', personal: '#be4bdb', leave: '#4c6ef5' };
 
         const calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: isMobile ? 'listWeek' : 'timeGridWeek',
@@ -324,18 +325,32 @@
                 }
                 const props = arg.event.extendedProps || {};
                 const typeLabel = typeLabelMap[props.type] || '기타';
+                const typeColor = typeColorMap[props.type] || '#6c757d';
+                const isListView = (arg.view?.type || '').startsWith('list');
                 const inner = document.createElement('div');
                 inner.className = 'fc-event-title fc-sticky d-flex align-items-center gap-1';
 
                 const badgeEl = document.createElement('span');
-                badgeEl.className = 'badge bg-light text-dark';
+                badgeEl.className = 'badge';
                 badgeEl.textContent = typeLabel;
 
                 inner.appendChild(badgeEl);
-                if (props.type === 'personal') {
-                    inner.style.color = '#fff';
-                    badgeEl.style.backgroundColor = 'rgba(255,255,255,0.25)';
+                if (isListView) {
+                    inner.style.backgroundColor = `${typeColor}1a`;
+                    inner.style.borderLeft = `4px solid ${typeColor}`;
+                    inner.style.padding = '4px 6px';
+                    badgeEl.style.backgroundColor = typeColor;
                     badgeEl.style.color = '#fff';
+                    inner.style.color = props.type === 'personal' ? '#212529' : '#212529';
+                } else {
+                    badgeEl.classList.add('bg-light', 'text-dark');
+                }
+                if (props.type === 'personal') {
+                    if (!isListView) {
+                        inner.style.color = '#fff';
+                        badgeEl.style.backgroundColor = 'rgba(255,255,255,0.25)';
+                        badgeEl.style.color = '#fff';
+                    }
                     const location = document.createElement('span');
                     location.className = 'text-truncate';
                     location.textContent = props.location || arg.event.title || '';
@@ -344,7 +359,7 @@
                     if (props.purpose) {
                         const memo = document.createElement('span');
                         memo.className = 'text-truncate';
-                        memo.style.color = '#e9ecef';
+                        memo.style.color = isListView ? '#6c757d' : '#e9ecef';
                         memo.textContent = props.purpose;
                         inner.appendChild(memo);
                     }
