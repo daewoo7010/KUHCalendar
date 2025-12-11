@@ -37,7 +37,7 @@
         <div class="card stat-card shadow-sm border-0">
             <div class="card-body text-center">
                 <i class="bi bi-clipboard2-check text-danger fs-1"></i>
-                <h5 class="card-title mt-2">출장 보고 필요</h5>
+                <h5 class="card-title mt-2">외부일정/출장 보고 필요</h5>
                 <h2 class="text-danger">{{ pending_trip_reports }}건</h2>
             </div>
         </div>
@@ -50,7 +50,7 @@
         <i class="bi bi-plus-circle me-2"></i>휴가 신청
     </a>
     <a href="{% url 'trip_create' %}" class="btn btn-outline-primary">
-        <i class="bi bi-airplane me-2"></i>출장 신청
+        <i class="bi bi-airplane me-2"></i>외부일정/출장 신청
     </a>
     <a href="{% url 'meeting_create' %}" class="btn btn-outline-success">
         <i class="bi bi-people-fill me-2"></i>미팅 추가
@@ -74,8 +74,8 @@
 </style>
 <div class="card shadow-sm border-0 mb-4" id="calendar-card">
     <div class="card-header bg-white d-flex align-items-center justify-content-between">
-        <h5 class="mb-0"><i class="bi bi-calendar3-event me-2"></i>승인된 휴가/출장/미팅 캘린더</h5>
-        <small class="text-muted">파랑(휴가)/하늘(출장)/초록(미팅): 내 일정 · 회색: 다른 인원</small>
+        <h5 class="mb-0"><i class="bi bi-calendar3-event me-2"></i>캘린더</h5>
+        <small class="text-muted">파랑(휴가)/하늘(외부)/초록(미팅): 내 일정 · 회색: 다른 인원</small>
     </div>
     <div class="card-body">
         <div id="calendar"></div>
@@ -130,10 +130,10 @@
     </div>
 </div>
 
-<!-- 출장 신청 내역 -->
+<!-- 외부일정/출장 신청 내역 -->
 <div class="card shadow-sm border-0">
     <div class="card-header bg-white">
-        <h5 class="mb-0"><i class="bi bi-airplane-fill me-2"></i>내 출장 내역</h5>
+        <h5 class="mb-0"><i class="bi bi-airplane-fill me-2"></i>내 외부일정/출장 내역</h5>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -274,7 +274,7 @@
                     return { domNodes: [] };
                 }
                 const props = arg.event.extendedProps || {};
-                const typeLabel = props.type === 'trip' ? '출장' : props.type === 'meeting' ? '미팅' : '휴가';
+                const typeLabel = props.type === 'trip' ? '외부' : props.type === 'meeting' ? '미팅' : '휴가';
                 const inner = document.createElement('div');
                 inner.className = 'fc-event-title fc-sticky d-flex align-items-center gap-1';
 
