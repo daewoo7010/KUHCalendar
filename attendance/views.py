@@ -394,6 +394,27 @@ def dashboard(request):
     for key in weekly_highlights:
         weekly_highlights[key] = sorted(weekly_highlights[key], key=lambda x: x.get('order'))[:5]
 
+    type_labels = {'leave': '휴가', 'trip': '외부일정', 'meeting': '미팅'}
+    grouped_highlights = {}
+    for key, items in weekly_highlights.items():
+        for item in items:
+            order_val = item.get('order')
+            day = order_val.date() if hasattr(order_val, 'date') else order_val
+            if not day:
+                continue
+            grouped_highlights.setdefault(day, []).append({
+                'type': type_labels.get(key, ''),
+                'title': item.get('title'),
+                'detail': item.get('detail'),
+            })
+
+    weekly_highlights_by_date = []
+    for day in sorted(grouped_highlights.keys()):
+        weekly_highlights_by_date.append({
+            'label': day.strftime('%m/%d'),
+            'items': grouped_highlights[day],
+        })
+
     return render(request, 'attendance/dashboard.html', {
         'leave_balance': leave_balance,
         'leave_summary': leave_summary,
@@ -403,6 +424,7 @@ def dashboard(request):
         'calendar_events_json': json.dumps(calendar_events, ensure_ascii=False),
         'weekly_highlights': weekly_highlights,
         'week_range_label': f"{today.strftime('%m/%d')} ~ {week_end.strftime('%m/%d')}",
+        'weekly_highlights_by_date_json': json.dumps(weekly_highlights_by_date, ensure_ascii=False),
     })
 
 
