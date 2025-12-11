@@ -398,9 +398,11 @@ def dashboard(request):
         end_dt = timezone.localtime(p.end_date)
         color = '#be4bdb'
         if start_dt.date() <= week_end and end_dt.date() >= today:
+            time_label = f"{start_dt.strftime('%m-%d')}" + (" 종일" if is_all_day else f" {start_dt.strftime('%H:%M')}") + (f" ~ {end_dt.strftime('%m-%d %H:%M')}" if not is_all_day else '')
+            location_label = p.location or '장소 미정'
             weekly_highlights['personal'].append({
                 'title': p.title,
-                'detail': f"{start_dt.strftime('%m-%d')}" + (" 종일" if is_all_day else f" {start_dt.strftime('%H:%M')}") + (f" ~ {end_dt.strftime('%m-%d %H:%M')}" if not is_all_day else ''),
+                'detail': f"{location_label} · {time_label}",
                 'order': start_dt,
             })
         calendar_events.append({
