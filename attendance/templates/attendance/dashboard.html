@@ -139,7 +139,7 @@
 <div class="card shadow-sm border-0 mb-4" id="calendar-card">
     <div class="card-header bg-white d-flex align-items-center justify-content-between">
         <h5 class="mb-0"><i class="bi bi-calendar3-event me-2"></i>캘린더</h5>
-        <small class="text-muted">파랑(휴가)/하늘(외부)/초록(미팅): 내 일정 · 회색: 다른 인원</small>
+        <small class="text-muted">파랑(휴가)/하늘(외부)/초록(미팅)/보라(개인): 내 일정 · 회색: 다른 인원</small>
     </div>
     <div class="card-body">
         <div id="calendar"></div>
@@ -296,6 +296,8 @@
             extendedProps: { isWorkHours: true },
         };
 
+        const typeLabelMap = { trip: '외부', meeting: '미팅', personal: '개인', leave: '휴가' };
+
         const calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: isMobile ? 'listWeek' : 'timeGridWeek',
             locale: 'ko',
@@ -320,7 +322,7 @@
                     return { domNodes: [] };
                 }
                 const props = arg.event.extendedProps || {};
-                const typeLabel = props.type === 'trip' ? '외부' : props.type === 'meeting' ? '미팅' : '휴가';
+                const typeLabel = typeLabelMap[props.type] || '기타';
                 const inner = document.createElement('div');
                 inner.className = 'fc-event-title fc-sticky d-flex align-items-center gap-1';
 
@@ -329,24 +331,38 @@
                 badgeEl.textContent = typeLabel;
 
                 inner.appendChild(badgeEl);
-                const people = document.createElement('span');
-                people.className = 'text-truncate';
-                const companions = (props.participants || []).filter(Boolean);
-                const names = [props.user].concat(companions).filter(Boolean);
-                const initials = names.map(n => n.trim().charAt(0)).filter(Boolean);
-                people.textContent = initials.join(', ');
-                inner.appendChild(people);
-
-                if (props.type === 'trip') {
+                if (props.type === 'personal') {
                     const location = document.createElement('span');
                     location.className = 'text-truncate';
                     location.textContent = props.location || arg.event.title || '';
                     inner.appendChild(location);
-                } else if (props.type === 'meeting') {
-                    const subject = document.createElement('span');
-                    subject.className = 'text-truncate';
-                    subject.textContent = props.purpose || arg.event.title || '';
-                    inner.appendChild(subject);
+
+                    if (props.purpose) {
+                        const memo = document.createElement('span');
+                        memo.className = 'text-truncate text-muted';
+                        memo.textContent = props.purpose;
+                        inner.appendChild(memo);
+                    }
+                } else {
+                    const people = document.createElement('span');
+                    people.className = 'text-truncate';
+                    const companions = (props.participants || []).filter(Boolean);
+                    const names = [props.user].concat(companions).filter(Boolean);
+                    const initials = names.map(n => n.trim().charAt(0)).filter(Boolean);
+                    people.textContent = initials.join(', ');
+                    inner.appendChild(people);
+
+                    if (props.type === 'trip') {
+                        const location = document.createElement('span');
+                        location.className = 'text-truncate';
+                        location.textContent = props.location || arg.event.title || '';
+                        inner.appendChild(location);
+                    } else if (props.type === 'meeting') {
+                        const subject = document.createElement('span');
+                        subject.className = 'text-truncate';
+                        subject.textContent = props.purpose || arg.event.title || '';
+                        inner.appendChild(subject);
+                    }
                 }
                 return { domNodes: [inner] };
             },
@@ -357,18 +373,23 @@
                 info.jsEvent.preventDefault();
                 const props = info.event.extendedProps || {};
                 const modal = new bootstrap.Modal(document.getElementById('eventDetailModal'));
-                const typeLabel = props.type === 'trip' ? '출장' : props.type === 'meeting' ? '미팅' : '휴가';
+                const typeLabel = props.type === 'trip' ? '출장' : props.type === 'meeting' ? '미팅' : props.type === 'personal' ? '개인' : '휴가';
                 document.getElementById('modalEventType').textContent = typeLabel;
                 document.getElementById('modalEventUser').textContent = props.user || '-';
                 document.getElementById('modalEventRange').textContent = props.range || '-';
                 const isMeeting = props.type === 'meeting';
+                const isPersonal = props.type === 'personal';
                 document.getElementById('modalEventLocation').textContent = isMeeting ? '-' : (props.location || '-');
                 document.getElementById('modalEventPurpose').textContent = props.purpose || props.reason || props.title || '-';
                 const modalParticipants = document.getElementById('modalEventParticipants');
                 if (modalParticipants) {
-                    const companions = (props.participants || []).filter(Boolean);
-                    const names = [props.user].concat(companions).filter(Boolean);
-                    modalParticipants.textContent = names.length ? names.join(', ') : '-';
+                    if (isPersonal) {
+                        modalParticipants.textContent = '-';
+                    } else {
+                        const companions = (props.participants || []).filter(Boolean);
+                        const names = [props.user].concat(companions).filter(Boolean);
+                        modalParticipants.textContent = names.length ? names.join(', ') : '-';
+                    }
                 }
 
                 // 관리 버튼 (본인 일정만)
