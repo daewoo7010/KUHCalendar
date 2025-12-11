@@ -392,7 +392,7 @@ def dashboard(request):
         })
 
     for key in weekly_highlights:
-        weekly_highlights[key] = sorted(weekly_highlights[key], key=lambda x: x.get('order'))[:5]
+        weekly_highlights[key] = sorted(weekly_highlights[key], key=lambda x: x.get('order'))
 
     type_labels = {'leave': '휴가', 'trip': '외부일정', 'meeting': '미팅'}
     type_colors = {'leave': '#4c6ef5', 'trip': '#0dcaf0', 'meeting': '#20c997'}
