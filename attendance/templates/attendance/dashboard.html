@@ -401,9 +401,9 @@
                 } else {
                     modalBody.innerHTML = grouped.map(day => {
                         const items = (day.items || []).map(item => `
-                            <div class="d-flex justify-content-between">
-                                <div class="fw-semibold me-2">${item.type || ''}</div>
-                                <div class="text-end">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="badge text-bg-light border" style="border-color:${item.color || '#dee2e6'}; color:${item.color || '#6c757d'}">${item.type || ''}</div>
+                                <div class="text-end flex-fill ms-2">
                                     <div>${item.title || ''}</div>
                                     <div class="text-muted small">${item.detail || ''}</div>
                                 </div>
@@ -418,10 +418,8 @@
         }
 
         window.showHighlightDetail = function(el) {
-            if (!el) return;
-            const title = el.getAttribute('data-item-title') || '';
-            const detail = el.getAttribute('data-item-detail') || '';
-            renderHighlightModal([{ label: '', items: [{ type: '', title, detail }] }]);
+            // 단일 항목 클릭 시에도 전체 주요 일정 표시
+            showAllHighlights();
         }
 
         window.showAllHighlights = function() {

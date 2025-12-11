@@ -395,6 +395,7 @@ def dashboard(request):
         weekly_highlights[key] = sorted(weekly_highlights[key], key=lambda x: x.get('order'))[:5]
 
     type_labels = {'leave': '휴가', 'trip': '외부일정', 'meeting': '미팅'}
+    type_colors = {'leave': '#4c6ef5', 'trip': '#0dcaf0', 'meeting': '#20c997'}
     grouped_highlights = {}
     for key, items in weekly_highlights.items():
         for item in items:
@@ -406,6 +407,7 @@ def dashboard(request):
                 'type': type_labels.get(key, ''),
                 'title': item.get('title'),
                 'detail': item.get('detail'),
+                'color': type_colors.get(key, '#6c757d'),
             })
 
     weekly_highlights_by_date = []
