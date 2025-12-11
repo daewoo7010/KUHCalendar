@@ -38,8 +38,9 @@
 
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">
+        <div class="px-3 pt-3 d-sm-none text-muted small">모바일에서는 좌우 스크롤로 전체 열을 확인하세요.</div>
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 report-table">
                 <colgroup>
                     <col style="width: 12%">
                     <col style="width: 16%">
@@ -123,6 +124,14 @@
 
 {% block extra_scripts %}
 {{ block.super }}
+<style>
+    @media (max-width: 576px) {
+        .report-table th, .report-table td { padding: 0.5rem 0.45rem; font-size: 0.9rem; white-space: nowrap; }
+        .report-table td.text-wrap { white-space: normal; }
+        .report-snippet { -webkit-line-clamp: 3; max-height: none; }
+        .report-table .btn-link { padding-left: 0; padding-right: 0; }
+    }
+</style>
 <script>
     const reportModal = document.getElementById('reportModal');
     if (reportModal) {

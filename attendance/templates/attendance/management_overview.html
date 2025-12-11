@@ -41,8 +41,9 @@
         <h5 class="mb-0"><i class="bi bi-people me-2"></i>구성원 현황</h5>
     </div>
     <div class="card-body p-0">
+        <div class="px-3 pt-3 d-sm-none text-muted small">모바일에서는 좌우 스크롤로 전체 열을 확인하세요.</div>
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 mgmt-table">
                 <thead class="table-light">
                     <tr>
                         <th>이름</th>
@@ -136,4 +137,9 @@
         </div>
     </div>
 </div>
+<style>
+    @media (max-width: 576px) {
+        .mgmt-table th, .mgmt-table td { padding: 0.45rem 0.4rem; font-size: 0.9rem; white-space: nowrap; }
+    }
+</style>
 {% endblock %}

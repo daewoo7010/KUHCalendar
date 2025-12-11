@@ -45,7 +45,7 @@
 </div>
 
 <!-- 액션 버튼 -->
-<div class="d-flex flex-wrap gap-2 mb-4 justify-content-end align-items-center">
+<div class="d-flex flex-wrap gap-2 mb-4 justify-content-end align-items-center dashboard-actions">
     <a href="{% url 'leave_create' %}" class="btn btn-primary">
         <i class="bi bi-plus-circle me-2"></i>휴가 신청
     </a>
@@ -61,6 +61,8 @@
 <style>
     /* Dashboard layout tweaks */
     #calendar { min-height: 520px; }
+    .table-mobile-sm th, .table-mobile-sm td { vertical-align: middle; }
+
     @media (max-width: 768px) {
         #calendar { min-height: 420px; }
         #calendar .fc-toolbar.fc-header-toolbar { flex-wrap: wrap; row-gap: .35rem; }
@@ -70,6 +72,14 @@
         #calendar .fc-col-header-cell-cushion { padding: 0.35rem 0.25rem; }
         #calendar .fc-timegrid-slot { height: 32px; }
         #calendar .fc-event { font-size: 0.9rem; }
+    }
+
+    @media (max-width: 576px) {
+        .dashboard-actions { flex-direction: column; align-items: stretch; }
+        .dashboard-actions .btn { width: 100%; justify-content: center; }
+        .table-mobile-sm th, .table-mobile-sm td { padding: 0.5rem 0.45rem; font-size: 0.9rem; }
+        .stat-card h2 { font-size: 1.25rem; }
+        .stat-card h5 { font-size: 0.95rem; }
     }
 </style>
 <div class="card shadow-sm border-0 mb-4" id="calendar-card">
@@ -89,7 +99,7 @@
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 table-mobile-sm">
                 <thead class="table-light">
                     <tr>
                         <th>기간</th>
@@ -137,7 +147,7 @@
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 table-mobile-sm">
                 <thead class="table-light">
                     <tr>
                         <th>기간</th>

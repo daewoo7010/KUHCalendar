@@ -2,7 +2,7 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-7">
-        <div class="card shadow-sm border-0">
+        <div class="card shadow-sm border-0 form-card">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">
                     <i class="bi bi-airplane-fill me-2"></i>
@@ -50,7 +50,7 @@
                         </div>
                         {% endif %}
                     {% endfor %}
-                    <div class="d-flex gap-2 mt-4">
+                    <div class="d-flex gap-2 mt-4 form-actions">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-check-circle me-2"></i>{% if is_edit %}수정하기{% else %}신청하기{% endif %}
                         </button>
@@ -66,6 +66,14 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<style>
+    @media (max-width: 576px) {
+        .form-card .card-body { padding: 1.25rem; }
+        .form-actions { flex-direction: column; align-items: stretch; }
+        .form-actions .btn { width: 100%; justify-content: center; }
+        #participant-chips { gap: 0.35rem; }
+    }
+</style>
 <script>
     // Replace native datetime picker with date + time input (step 10m) plus datalist options
     document.addEventListener('DOMContentLoaded', () => {
