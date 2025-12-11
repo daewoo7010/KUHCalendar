@@ -95,6 +95,8 @@
     /* Dashboard layout tweaks */
     #calendar { min-height: 520px; }
     .table-mobile-sm th, .table-mobile-sm td { vertical-align: middle; }
+    #highlightDetailModal .highlight-item + .highlight-item { margin-top: 0.4rem; }
+    #highlightDetailModal .highlight-type { min-width: 72px; }
 
     @media (max-width: 768px) {
         #calendar { min-height: 420px; }
@@ -404,8 +406,8 @@
                             const color = item.color || '#6c757d';
                             const bg = `${color}1a`; // light tint
                             return `
-                                <div class="d-flex align-items-start gap-2 p-2 rounded-2 border" style="border-color:${color}33; background:${bg};">
-                                    <div class="badge" style="background:${color}; color:#fff;">${item.type || ''}</div>
+                                <div class="d-flex align-items-start gap-3 p-2 rounded-2 border highlight-item" style="border-color:${color}33; background:${bg};">
+                                    <div class="badge text-center highlight-type" style="background:${color}; color:#fff;">${item.type || ''}</div>
                                     <div class="flex-fill text-start">
                                         <div class="fw-semibold">${item.title || ''}</div>
                                         <div class="text-muted small">${item.detail || ''}</div>
