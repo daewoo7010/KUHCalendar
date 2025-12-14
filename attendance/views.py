@@ -639,6 +639,7 @@ def calendar_feed(request, token: str):
         'VERSION:2.0',
         'PRODID:-//KUHCalendar//Attendance//KO',
         'CALSCALE:GREGORIAN',
+        'X-WR-TIMEZONE:Asia/Seoul',
         f"X-WR-CALNAME:{_ics_escape(user.username)} 일정",
         'METHOD:PUBLISH',
     ]
