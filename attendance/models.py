@@ -8,6 +8,7 @@ class CustomUser(AbstractUser):
     department = models.CharField(max_length=50, blank=True, null=True)
     position = models.CharField(max_length=50, blank=True, null=True)
     join_date = models.DateField(null=True, blank=True)
+    feed_token = models.CharField(max_length=64, blank=True, null=True, unique=True)
 
 
 class LeaveBalance(models.Model):

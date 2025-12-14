@@ -1,5 +1,7 @@
 import json
 import math
+import secrets
+import uuid
 from datetime import timedelta, date
 
 from django.db import models
@@ -13,13 +15,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
 from django.core.mail import send_mail
 from django.utils.crypto import get_random_string
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.urls import reverse
 
 from .forms import LeaveForm, SignUpForm, TripForm, TripReportForm, MeetingForm, PersonalEventForm
-from .models import LeaveApprovalStep, LeaveBalance, LeaveRequest, TripReportRecipient, TripRequest, Meeting, PersonalEvent
+from .models import LeaveApprovalStep, LeaveBalance, LeaveRequest, TripReportRecipient, TripRequest, Meeting, PersonalEvent, CustomUser
 
 ADMIN_GROUP = '관리자'
 ROLE_GROUPS = ['관리자', '휴가 결재권자', '출장 결재권자', '경영관리부']
@@ -43,6 +45,13 @@ def _normalize_all_day_event(event_obj):
         end_date = timezone.localdate(event_obj.end_date)
         event_obj.start_date = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()), tz)
         event_obj.end_date = timezone.make_aware(timezone.datetime.combine(end_date, timezone.datetime.max.time().replace(microsecond=0)), tz)
+
+
+def _ensure_feed_token(user: CustomUser) -> str:
+    if not user.feed_token:
+        user.feed_token = secrets.token_urlsafe(32)[:64]
+        user.save(update_fields=['feed_token'])
+    return user.feed_token
 
 
 def _round_half_up(value: float) -> int:
@@ -564,6 +573,126 @@ def personal_delete(request, pk):
     else:
         messages.error(request, '잘못된 요청입니다.')
     return redirect('dashboard')
+
+
+@login_required
+def calendar_feed_settings(request):
+    token = _ensure_feed_token(request.user)
+    feed_url = request.build_absolute_uri(reverse('calendar_feed', args=[token]))
+
+    if request.method == 'POST':
+        token = secrets.token_urlsafe(32)[:64]
+        request.user.feed_token = token
+        request.user.save(update_fields=['feed_token'])
+        feed_url = request.build_absolute_uri(reverse('calendar_feed', args=[token]))
+        messages.success(request, '새 캘린더 구독 URL이 생성되었습니다. 이전 URL은 더 이상 동작하지 않습니다.')
+
+    return render(request, 'attendance/calendar_feed.html', {
+        'feed_url': feed_url,
+    })
+
+
+def _ics_escape(value: str) -> str:
+    if value is None:
+        return ''
+    value = value.replace('\\', '\\\\')
+    value = value.replace('\r\n', '\n').replace('\r', '\n')
+    value = value.replace('\n', '\n')
+    value = value.replace(',', '\\,').replace(';', '\\;')
+    return value
+
+
+def _format_ics_dt(dt, all_day: bool) -> str:
+    if all_day:
+        return timezone.localdate(dt).strftime('%Y%m%d')
+    return timezone.make_naive(dt, timezone=timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+
+
+def _add_ics_event(lines, *, summary, start, end, all_day, location=None, description=None, uid_prefix='evt'):
+    lines.append('BEGIN:VEVENT')
+    lines.append(f"UID:{uid_prefix}-{uuid.uuid4()}@kuhcalendar")
+    lines.append(f"DTSTAMP:{timezone.now().strftime('%Y%m%dT%H%M%SZ')}")
+    if all_day:
+        lines.append(f"DTSTART;VALUE=DATE:{_format_ics_dt(start, True)}")
+        lines.append(f"DTEND;VALUE=DATE:{_format_ics_dt(end + timedelta(days=1), True)}")
+    else:
+        lines.append(f"DTSTART:{_format_ics_dt(start, False)}")
+        lines.append(f"DTEND:{_format_ics_dt(end, False)}")
+    lines.append(f"SUMMARY:{_ics_escape(summary)}")
+    if location:
+        lines.append(f"LOCATION:{_ics_escape(location)}")
+    if description:
+        lines.append(f"DESCRIPTION:{_ics_escape(description)}")
+    lines.append('END:VEVENT')
+
+
+def calendar_feed(request, token: str):
+    user = get_object_or_404(CustomUser, feed_token=token)
+
+    leaves = LeaveRequest.objects.filter(user=user)
+    trips = TripRequest.objects.filter(Q(user=user) | Q(participants=user)).distinct()
+    meetings = Meeting.objects.filter(Q(user=user) | Q(participants=user)).distinct()
+    personals = PersonalEvent.objects.filter(user=user)
+
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//KUHCalendar//Attendance//KO',
+        'CALSCALE:GREGORIAN',
+        f"X-WR-CALNAME:{_ics_escape(user.username)} 일정",
+        'METHOD:PUBLISH',
+    ]
+
+    for leave in leaves:
+        summary = f"[휴가] {leave.leave_type}"
+        desc = f"상태: {leave.status}\n사유: {leave.reason or ''}"
+        _add_ics_event(lines,
+                       summary=summary,
+                       start=timezone.make_aware(timezone.datetime.combine(leave.start_date, timezone.datetime.min.time()), timezone.get_current_timezone()),
+                       end=timezone.make_aware(timezone.datetime.combine(leave.end_date, timezone.datetime.max.time().replace(microsecond=0)), timezone.get_current_timezone()),
+                       all_day=True,
+                       description=desc,
+                       uid_prefix='leave')
+
+    for trip in trips:
+        summary = f"[외부] {trip.location}"
+        desc = trip.purpose or ''
+        _add_ics_event(lines,
+                       summary=summary,
+                       start=trip.start_date,
+                       end=trip.end_date,
+                       all_day=trip.all_day,
+                       location=trip.location,
+                       description=desc,
+                       uid_prefix='trip')
+
+    for meeting in meetings:
+        summary = f"[미팅] {meeting.subject}"
+        _add_ics_event(lines,
+                       summary=summary,
+                       start=meeting.start_date,
+                       end=meeting.end_date,
+                       all_day=meeting.all_day,
+                       description='',
+                       uid_prefix='meeting')
+
+    for pe in personals:
+        summary = f"[개인] {pe.title}"
+        desc = pe.description or ''
+        _add_ics_event(lines,
+                       summary=summary,
+                       start=pe.start_date,
+                       end=pe.end_date,
+                       all_day=pe.all_day,
+                       location=pe.location,
+                       description=desc,
+                       uid_prefix='personal')
+
+    lines.append('END:VCALENDAR')
+    ics_data = '\r\n'.join(lines) + '\r\n'
+    response = HttpResponse(ics_data, content_type='text/calendar; charset=utf-8')
+    response['Content-Disposition'] = 'attachment; filename="calendar.ics"'
+    return response
 
 
 @login_required

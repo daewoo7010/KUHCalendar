@@ -1,0 +1,63 @@
+{% extends 'attendance/base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7 col-md-9">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
+                <h5 class="mb-0"><i class="bi bi-link-45deg me-2"></i>캘린더 구독 URL</h5>
+                <span class="small text-white-50">외부 캘린더에서 URL 구독</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    이 URL을 Google/Outlook 등의 캘린더 앱에서 "URL로 구독"에 붙여넣으면 개인 일정/휴가/외부/미팅을 읽기 전용으로 볼 수 있습니다.
+                    URL에는 고유 토큰이 포함되므로 외부에 공유하지 마세요.
+                </p>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">내 캘린더 구독 URL</label>
+                    <div class="input-group">
+                        <input id="feedUrl" type="text" class="form-control" value="{{ feed_url }}" readonly>
+                        <button class="btn btn-outline-secondary" type="button" id="copyBtn"><i class="bi bi-clipboard"></i> 복사</button>
+                    </div>
+                    <div class="form-text">토큰이 유출된 경우 아래 버튼으로 새 URL을 발급하세요. 이전 URL은 즉시 무효화됩니다.</div>
+                </div>
+                <form method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger"><i class="bi bi-arrow-clockwise me-2"></i>새 URL 재발급</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mt-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>앱별 추가 방법</h6>
+            </div>
+            <div class="card-body small text-muted">
+                <ul class="mb-0 ps-3">
+                    <li><strong>Google Calendar</strong>: 다른 캘린더 → "+" → "URL로 추가" → 위 URL 입력 → 추가</li>
+                    <li><strong>Outlook</strong>: 캘린더 → "캘린더 추가" → "인터넷에서" → 위 URL 입력 후 이름 지정</li>
+                    <li><strong>Apple/iOS</strong>: 설정 또는 캘린더 앱 → "캘린더 구독" → 위 URL 입력</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const copyBtn = document.getElementById('copyBtn');
+        const feedInput = document.getElementById('feedUrl');
+        copyBtn?.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(feedInput.value);
+                copyBtn.innerHTML = '<i class="bi bi-check2"></i> 복사됨';
+                setTimeout(() => copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> 복사', 1500);
+            } catch (e) {
+                feedInput.select();
+                document.execCommand('copy');
+            }
+        });
+    });
+</script>
+{% endblock %}
