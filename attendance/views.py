@@ -616,16 +616,19 @@ def personal_delete(request, pk):
 def calendar_feed_settings(request):
     token = _ensure_feed_token(request.user)
     feed_url = _ensure_https(request.build_absolute_uri(reverse('calendar_feed', args=[token])))
+    feed_url_all = _ensure_https(request.build_absolute_uri(reverse('calendar_feed_all', args=[token])))
 
     if request.method == 'POST':
         token = secrets.token_urlsafe(32)[:64]
         request.user.feed_token = token
         request.user.save(update_fields=['feed_token'])
         feed_url = _ensure_https(request.build_absolute_uri(reverse('calendar_feed', args=[token])))
+        feed_url_all = _ensure_https(request.build_absolute_uri(reverse('calendar_feed_all', args=[token])))
         messages.success(request, '새 캘린더 구독 URL이 생성되었습니다. 이전 URL은 더 이상 동작하지 않습니다.')
 
     return render(request, 'attendance/calendar_feed.html', {
         'feed_url': feed_url,
+        'feed_url_all': feed_url_all,
     })
 
 
@@ -645,7 +648,7 @@ def _format_ics_dt(dt, all_day: bool) -> str:
     return timezone.make_naive(dt, timezone=timezone.utc).strftime('%Y%m%dT%H%M%SZ')
 
 
-def _add_ics_event(lines, *, summary, start, end, all_day, location=None, description=None, uid_prefix='evt'):
+def _add_ics_event(lines, *, summary, start, end, all_day, location=None, description=None, uid_prefix='evt', categories=None):
     lines.append('BEGIN:VEVENT')
     lines.append(f"UID:{uid_prefix}-{uuid.uuid4()}@kuhcalendar")
     lines.append(f"DTSTAMP:{timezone.now().strftime('%Y%m%dT%H%M%SZ')}")
@@ -660,14 +663,17 @@ def _add_ics_event(lines, *, summary, start, end, all_day, location=None, descri
         lines.append(f"LOCATION:{_ics_escape(location)}")
     if description:
         lines.append(f"DESCRIPTION:{_ics_escape(description)}")
+    if categories:
+        cat = ','.join(categories)
+        lines.append(f"CATEGORIES:{_ics_escape(cat)}")
     lines.append('END:VEVENT')
 
 
 def calendar_feed(request, token: str):
     user = get_object_or_404(CustomUser, feed_token=token)
 
-    leaves = LeaveRequest.objects.filter(user=user)
-    trips = TripRequest.objects.filter(Q(user=user) | Q(participants=user)).distinct()
+    leaves = LeaveRequest.objects.filter(user=user, status='approved')
+    trips = TripRequest.objects.filter(Q(user=user) | Q(participants=user), status='approved').distinct()
     meetings = Meeting.objects.filter(Q(user=user) | Q(participants=user)).distinct()
     personals = PersonalEvent.objects.filter(user=user)
 
@@ -681,8 +687,12 @@ def calendar_feed(request, token: str):
         'METHOD:PUBLISH',
     ]
 
+    def _user_initial(u):
+        name = getattr(u, 'username', '') or ''
+        return name[:1] if name else ''
+
     for leave in leaves:
-        summary = f"[휴가] {leave.leave_type}"
+        summary = f"[휴가-내] {leave.leave_type} ({leave.user.username})"
         desc = f"상태: {leave.status}\n사유: {leave.reason or ''}"
         _add_ics_event(lines,
                        summary=summary,
@@ -690,10 +700,13 @@ def calendar_feed(request, token: str):
                        end=timezone.make_aware(timezone.datetime.combine(leave.end_date, timezone.datetime.max.time().replace(microsecond=0)), timezone.get_current_timezone()),
                        all_day=True,
                        description=desc,
-                       uid_prefix='leave')
+                       uid_prefix='leave',
+                       categories=['mine'])
 
     for trip in trips:
-        summary = f"[외부] {trip.location}"
+        people = [_user_initial(trip.user)] + [_user_initial(p) for p in trip.participants.all()]
+        initials = ','.join([p for p in people if p])
+        summary = f"[외부-내] {trip.location} ({initials})"
         desc = trip.purpose or ''
         _add_ics_event(lines,
                        summary=summary,
@@ -702,17 +715,22 @@ def calendar_feed(request, token: str):
                        all_day=trip.all_day,
                        location=trip.location,
                        description=desc,
-                       uid_prefix='trip')
+                       uid_prefix='trip',
+                       categories=['mine'])
 
     for meeting in meetings:
-        summary = f"[미팅] {meeting.subject}"
+        people = [_user_initial(meeting.user)] + [_user_initial(p) for p in meeting.participants.all()]
+        initials = ','.join([p for p in people if p])
+        summary = f"[미팅-내] {meeting.subject} ({initials})"
+        desc = f"참석: {initials}" if initials else ''
         _add_ics_event(lines,
                        summary=summary,
                        start=meeting.start_date,
                        end=meeting.end_date,
                        all_day=meeting.all_day,
-                       description='',
-                       uid_prefix='meeting')
+                       description=desc,
+                       uid_prefix='meeting',
+                       categories=['mine'])
 
     for pe in personals:
         summary = f"[개인] {pe.title}"
@@ -724,12 +742,117 @@ def calendar_feed(request, token: str):
                        all_day=pe.all_day,
                        location=pe.location,
                        description=desc,
-                       uid_prefix='personal')
+                       uid_prefix='personal',
+                       categories=['mine'])
 
     lines.append('END:VCALENDAR')
     ics_data = '\r\n'.join(lines) + '\r\n'
     response = HttpResponse(ics_data, content_type='text/calendar; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="calendar.ics"'
+    return response
+
+
+def _make_owner_other_label(is_owner: bool, kind: str) -> str:
+    return f"[{kind}-내]" if is_owner else f"[{kind}-타]"
+
+
+def _ics_datetime_for_all_day(day: date):
+    tz = timezone.get_current_timezone()
+    start = timezone.make_aware(timezone.datetime.combine(day, timezone.datetime.min.time()), tz)
+    end = timezone.make_aware(timezone.datetime.combine(day, timezone.datetime.max.time().replace(microsecond=0)), tz)
+    return start, end
+
+
+def calendar_feed_all(request, token: str):
+    user = get_object_or_404(CustomUser, feed_token=token)
+
+    leaves = LeaveRequest.objects.filter(status='approved').select_related('user')
+    trips = TripRequest.objects.filter(status='approved').select_related('user').prefetch_related('participants').distinct()
+    meetings = Meeting.objects.select_related('user').prefetch_related('participants')
+    personals = PersonalEvent.objects.all()
+
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//KUHCalendar//Attendance//KO',
+        'CALSCALE:GREGORIAN',
+        'X-WR-TIMEZONE:Asia/Seoul',
+        f"X-WR-CALNAME:{_ics_escape(user.username)} 전체 일정",
+        'METHOD:PUBLISH',
+    ]
+
+    def _user_initial(u):
+        name = getattr(u, 'username', '') or ''
+        return name[:1] if name else ''
+
+    for leave in leaves:
+        owner = leave.user_id == user.id
+        kind_label = _make_owner_other_label(owner, '휴가')
+        summary = f"{kind_label} {leave.leave_type} ({leave.user.username})"
+        desc = f"상태: {leave.status}\n사유: {leave.reason or ''}"
+        start_dt, end_dt = _ics_datetime_for_all_day(leave.start_date)[0], _ics_datetime_for_all_day(leave.end_date)[1]
+        _add_ics_event(lines,
+                       summary=summary,
+                       start=start_dt,
+                       end=end_dt,
+                       all_day=True,
+                       description=desc,
+                       uid_prefix='leave',
+                       categories=['mine' if owner else 'other'])
+
+    for trip in trips:
+        owner = trip.user_id == user.id
+        people = [_user_initial(trip.user)] + [_user_initial(p) for p in trip.participants.all()]
+        initials = ','.join([p for p in people if p])
+        kind_label = _make_owner_other_label(owner, '외부')
+        summary = f"{kind_label} {trip.location} ({initials})"
+        desc = trip.purpose or ''
+        _add_ics_event(lines,
+                       summary=summary,
+                       start=trip.start_date,
+                       end=trip.end_date,
+                       all_day=trip.all_day,
+                       location=trip.location,
+                       description=desc,
+                       uid_prefix='trip',
+                       categories=['mine' if owner else 'other'])
+
+    for meeting in meetings:
+        owner = meeting.user_id == user.id
+        people = [_user_initial(meeting.user)] + [_user_initial(p) for p in meeting.participants.all()]
+        initials = ','.join([p for p in people if p])
+        kind_label = _make_owner_other_label(owner, '미팅')
+        summary = f"{kind_label} {meeting.subject} ({initials})"
+        desc = f"참석: {initials}" if initials else ''
+        _add_ics_event(lines,
+                       summary=summary,
+                       start=meeting.start_date,
+                       end=meeting.end_date,
+                       all_day=meeting.all_day,
+                       description=desc,
+                       uid_prefix='meeting',
+                       categories=['mine' if owner else 'other'])
+
+    for pe in personals:
+        owner = pe.user_id == user.id
+        if not owner:
+            continue  # 개인일정은 본인만 노출
+        summary = f"[개인] {pe.title}"
+        desc = pe.description or ''
+        _add_ics_event(lines,
+                       summary=summary,
+                       start=pe.start_date,
+                       end=pe.end_date,
+                       all_day=pe.all_day,
+                       location=pe.location,
+                       description=desc,
+                       uid_prefix='personal',
+                       categories=['mine'])
+
+    lines.append('END:VCALENDAR')
+    ics_data = '\r\n'.join(lines) + '\r\n'
+    response = HttpResponse(ics_data, content_type='text/calendar; charset=utf-8')
+    response['Content-Disposition'] = 'attachment; filename="calendar-all.ics"'
     return response
 
 

@@ -9,16 +9,26 @@
             </div>
             <div class="card-body">
                 <p class="text-muted mb-3">
-                    이 URL을 Google/Outlook 등의 캘린더 앱에서 "URL로 구독"에 붙여넣으면 개인 일정/휴가/외부/미팅을 읽기 전용으로 볼 수 있습니다.
-                    URL에는 고유 토큰이 포함되므로 외부에 공유하지 마세요.
+                    URL을 Google/Outlook 등에 "URL로 구독"으로 추가하면 읽기 전용 캘린더로 볼 수 있습니다. 토큰이 포함되어 있으니 외부 공유를 피하세요.
                 </p>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">내 캘린더 구독 URL</label>
+                    <label class="form-label fw-semibold">내 일정만 구독</label>
                     <div class="input-group">
-                        <input id="feedUrl" type="text" class="form-control" value="{{ feed_url }}" readonly>
-                        <button class="btn btn-outline-secondary" type="button" id="copyBtn"><i class="bi bi-clipboard"></i> 복사</button>
+                        <input id="feedUrlMine" type="text" class="form-control" value="{{ feed_url }}" readonly>
+                        <button class="btn btn-outline-secondary" type="button" data-copy-target="feedUrlMine"><i class="bi bi-clipboard"></i> 복사</button>
                     </div>
-                    <div class="form-text">토큰이 유출된 경우 아래 버튼으로 새 URL을 발급하세요. 이전 URL은 즉시 무효화됩니다.</div>
+                    <div class="form-text">휴가/외부/미팅/개인 일정(본인)만 포함합니다.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">전체 일정 구독 (내 + 타인)</label>
+                    <div class="input-group">
+                        <input id="feedUrlAll" type="text" class="form-control" value="{{ feed_url_all }}" readonly>
+                        <button class="btn btn-outline-secondary" type="button" data-copy-target="feedUrlAll"><i class="bi bi-clipboard"></i> 복사</button>
+                    </div>
+                    <div class="form-text">타인 일정은 제목에 [타] 표시, CATEGORIES=other 로 구분됩니다.</div>
+                </div>
+                <div class="mb-3">
+                    <div class="small text-muted">토큰이 유출된 경우 새로 발급하면 이전 URL은 즉시 무효화됩니다.</div>
                 </div>
                 <form method="post" class="d-inline">
                     {% csrf_token %}
@@ -46,17 +56,19 @@
 {% block extra_scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const copyBtn = document.getElementById('copyBtn');
-        const feedInput = document.getElementById('feedUrl');
-        copyBtn?.addEventListener('click', async () => {
-            try {
-                await navigator.clipboard.writeText(feedInput.value);
-                copyBtn.innerHTML = '<i class="bi bi-check2"></i> 복사됨';
-                setTimeout(() => copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> 복사', 1500);
-            } catch (e) {
-                feedInput.select();
-                document.execCommand('copy');
-            }
+        document.querySelectorAll('[data-copy-target]').forEach(btn => {
+            const targetId = btn.getAttribute('data-copy-target');
+            const input = document.getElementById(targetId);
+            btn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(input.value);
+                    btn.innerHTML = '<i class="bi bi-check2"></i> 복사됨';
+                    setTimeout(() => btn.innerHTML = '<i class="bi bi-clipboard"></i> 복사', 1500);
+                } catch (e) {
+                    input.select();
+                    document.execCommand('copy');
+                }
+            });
         });
     });
 </script>
