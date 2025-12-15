@@ -54,6 +54,12 @@ def _ensure_feed_token(user: CustomUser) -> str:
     return user.feed_token
 
 
+def _ensure_https(url: str) -> str:
+    if url.startswith('http://'):
+        return 'https://' + url[len('http://'):]
+    return url
+
+
 def _round_half_up(value: float) -> int:
     return math.floor(value + 0.5)
 
@@ -609,13 +615,13 @@ def personal_delete(request, pk):
 @login_required
 def calendar_feed_settings(request):
     token = _ensure_feed_token(request.user)
-    feed_url = request.build_absolute_uri(reverse('calendar_feed', args=[token]))
+    feed_url = _ensure_https(request.build_absolute_uri(reverse('calendar_feed', args=[token])))
 
     if request.method == 'POST':
         token = secrets.token_urlsafe(32)[:64]
         request.user.feed_token = token
         request.user.save(update_fields=['feed_token'])
-        feed_url = request.build_absolute_uri(reverse('calendar_feed', args=[token]))
+        feed_url = _ensure_https(request.build_absolute_uri(reverse('calendar_feed', args=[token])))
         messages.success(request, '새 캘린더 구독 URL이 생성되었습니다. 이전 URL은 더 이상 동작하지 않습니다.')
 
     return render(request, 'attendance/calendar_feed.html', {
