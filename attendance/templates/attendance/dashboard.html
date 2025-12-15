@@ -257,6 +257,7 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const updateUrl = "{% url 'calendar_event_update' %}";
         const rawData = (document.getElementById('calendar-data') && document.getElementById('calendar-data').textContent) || '{{ calendar_events_json|escapejs }}';
         let events = [];
         try {
@@ -267,6 +268,18 @@
         }
         const calendarEl = document.getElementById('calendar');
         if (!calendarEl) return;
+
+        const getCookie = (name) => {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        };
+
+        const getCsrf = () => {
+            const formToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value;
+            return formToken || getCookie('csrftoken') || '';
+        };
 
         const decodeNewlines = (value) => {
             if (!value) return '';
@@ -318,6 +331,12 @@
             listDayFormat: { month: 'numeric', day: 'numeric', weekday: 'short' },
             listDaySideFormat: false,
             events: [...events, workHoursBackground],
+            editable: true,
+            eventStartEditable: true,
+            eventDurationEditable: true,
+            eventAllow: function(dropInfo) {
+                return !!dropInfo.event.extendedProps?.canManage;
+            },
             eventDisplay: 'block',
             eventContent: function(arg) {
                 if (arg.event.extendedProps && arg.event.extendedProps.isWorkHours) {
@@ -455,8 +474,46 @@
 
                 modal.show();
             },
+            eventDrop: async function(info) {
+                if (!info.event.extendedProps?.canManage) return;
+                const ok = await updateEventOnServer(info.event);
+                if (!ok) info.revert();
+            },
+            eventResize: async function(info) {
+                if (!info.event.extendedProps?.canManage) return;
+                const ok = await updateEventOnServer(info.event);
+                if (!ok) info.revert();
+            },
         });
         calendar.render();
+
+        async function updateEventOnServer(event) {
+            try {
+                const payload = new URLSearchParams();
+                payload.append('type', event.extendedProps.type || '');
+                payload.append('id', event.extendedProps.id || '');
+                payload.append('start', event.start ? event.start.toISOString() : '');
+                payload.append('end', event.end ? event.end.toISOString() : (event.start ? event.start.toISOString() : ''));
+                payload.append('allDay', event.allDay ? 'true' : 'false');
+
+                const res = await fetch(updateUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-CSRFToken': getCsrf(),
+                    },
+                    body: payload.toString(),
+                });
+                if (!res.ok) {
+                    console.warn('이동/수정 실패', await res.text());
+                    return false;
+                }
+                return true;
+            } catch (e) {
+                console.error('캘린더 이벤트 업데이트 오류', e);
+                return false;
+            }
+        }
 
         const highlightsByDate = (() => {
             try {

@@ -2,7 +2,7 @@ import json
 import math
 import secrets
 import uuid
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 
 from django.db import models
 
@@ -15,10 +15,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
 from django.core.mail import send_mail
 from django.utils.crypto import get_random_string
-from django.http import HttpResponseForbidden, HttpResponse
+from django.http import HttpResponseForbidden, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 
 from .forms import LeaveForm, SignUpForm, TripForm, TripReportForm, MeetingForm, PersonalEventForm
 from .models import LeaveApprovalStep, LeaveBalance, LeaveRequest, TripReportRecipient, TripRequest, Meeting, PersonalEvent, CustomUser
@@ -68,6 +69,30 @@ def _user_initial(u):
 def _summary(kind: str, initials: str, title: str) -> str:
     initials_part = f"({initials}) " if initials else ''
     return f"[{kind}] {initials_part}{title}"
+
+
+def _parse_iso_datetime(dt_str: str):
+    if not dt_str:
+        return None
+    dt_str = dt_str.replace('Z', '')
+    try:
+        dt = datetime.fromisoformat(dt_str)
+    except ValueError:
+        return None
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt, timezone=timezone.get_current_timezone())
+    return dt
+
+
+def _parse_event_datetimes(start_str: str, end_str: str, all_day: bool):
+    start_dt = _parse_iso_datetime(start_str)
+    end_dt = _parse_iso_datetime(end_str)
+    if not start_dt or not end_dt:
+        return None, None
+    if all_day:
+        # FullCalendar all-day end is exclusive, adjust back one day
+        end_dt = end_dt - timedelta(days=1)
+    return start_dt, end_dt
 
 
 def _round_half_up(value: float) -> int:
@@ -378,6 +403,7 @@ def dashboard(request):
                 'deleteUrl': reverse('trip_delete', args=[trip.id]) if owner else '',
                 'participants': participant_names,
             },
+            'editable': owner,
         })
 
     meeting_qs = Meeting.objects.select_related('user').prefetch_related('participants')
@@ -417,6 +443,7 @@ def dashboard(request):
                 'editUrl': reverse('meeting_update', args=[meeting.id]) if owner else '',
                 'deleteUrl': reverse('meeting_delete', args=[meeting.id]) if owner else '',
             },
+            'editable': owner,
         })
 
     personal_qs = PersonalEvent.objects.filter(user=request.user)
@@ -454,6 +481,7 @@ def dashboard(request):
                 'editUrl': reverse('personal_update', args=[p.id]),
                 'deleteUrl': reverse('personal_delete', args=[p.id]),
             },
+            'editable': True,
         })
 
     for key in weekly_highlights:
@@ -837,6 +865,47 @@ def calendar_feed_others(request, token: str):
     response = HttpResponse(ics_data, content_type='text/calendar; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="calendar-others.ics"'
     return response
+
+
+@login_required
+@require_POST
+def calendar_event_update(request):
+    type_ = request.POST.get('type')
+    obj_id = request.POST.get('id')
+    start = request.POST.get('start')
+    end = request.POST.get('end')
+    all_day = request.POST.get('allDay') == 'true'
+
+    if type_ not in ['trip', 'meeting', 'personal']:
+        return JsonResponse({'error': 'unsupported_type'}, status=400)
+
+    start_dt, end_dt = _parse_event_datetimes(start, end, all_day)
+    if not start_dt or not end_dt:
+        return JsonResponse({'error': 'invalid_datetime'}, status=400)
+
+    if type_ == 'trip':
+        obj = get_object_or_404(TripRequest, pk=obj_id, user=request.user)
+        obj.all_day = all_day
+        obj.start_date = start_dt
+        obj.end_date = end_dt
+        _normalize_all_day_event(obj)
+        obj.save(update_fields=['start_date', 'end_date', 'all_day'])
+    elif type_ == 'meeting':
+        obj = get_object_or_404(Meeting, pk=obj_id, user=request.user)
+        obj.all_day = all_day
+        obj.start_date = start_dt
+        obj.end_date = end_dt
+        _normalize_all_day_event(obj)
+        obj.save(update_fields=['start_date', 'end_date', 'all_day'])
+    elif type_ == 'personal':
+        obj = get_object_or_404(PersonalEvent, pk=obj_id, user=request.user)
+        obj.all_day = all_day
+        obj.start_date = start_dt
+        obj.end_date = end_dt
+        _normalize_all_day_event(obj)
+        obj.save(update_fields=['start_date', 'end_date', 'all_day'])
+
+    return JsonResponse({'ok': True})
 
 
 @login_required

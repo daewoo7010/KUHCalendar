@@ -17,6 +17,7 @@ urlpatterns = [
     path('calendar/url/', views.calendar_feed_settings, name='calendar_feed_settings'),
     path('calendar/feed/<str:token>.ics', views.calendar_feed, name='calendar_feed'),
     path('calendar/feed/others/<str:token>.ics', views.calendar_feed_others, name='calendar_feed_others'),
+    path('calendar/event/update/', views.calendar_event_update, name='calendar_event_update'),
     path('trip/<int:trip_id>/edit/', views.trip_update, name='trip_update'),
     path('trip/<int:trip_id>/delete/', views.trip_delete, name='trip_delete'),
     path('trip/report/<int:trip_id>/', views.trip_report, name='trip_report'),
