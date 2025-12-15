@@ -5,7 +5,7 @@
             <div class="card shadow-sm border-0 form-card">
             <div class="card-header bg-success text-white">
                 <h5 class="mb-0">
-                    <i class="bi bi-people-fill me-2"></i>미팅 추가
+                    <i class="bi bi-people-fill me-2"></i>{% if is_edit %}미팅 수정{% else %}미팅 추가{% endif %}
                 </h5>
             </div>
             <div class="card-body p-4">
@@ -51,7 +51,7 @@
                     {% endfor %}
                         <div class="d-flex gap-2 mt-4 form-actions">
                         <button type="submit" class="btn btn-success">
-                            <i class="bi bi-check-circle me-2"></i>등록하기
+                            <i class="bi bi-check-circle me-2"></i>{% if is_edit %}수정하기{% else %}등록하기{% endif %}
                         </button>
                         <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
                             <i class="bi bi-x-circle me-2"></i>취소

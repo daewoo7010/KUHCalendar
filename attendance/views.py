@@ -397,6 +397,9 @@ def dashboard(request):
                 'mine': mine_for_color,
                 'title': meeting.subject,
                 'participants': participant_names,
+                'canManage': owner,
+                'editUrl': reverse('meeting_update', args=[meeting.id]) if owner else '',
+                'deleteUrl': reverse('meeting_delete', args=[meeting.id]) if owner else '',
             },
         })
 
@@ -528,7 +531,35 @@ def meeting_create(request):
             return redirect('dashboard')
     else:
         form = MeetingForm()
-    return render(request, 'attendance/meeting_form.html', {'form': form})
+    return render(request, 'attendance/meeting_form.html', {'form': form, 'is_edit': False})
+
+
+@login_required
+def meeting_update(request, pk):
+    meeting = get_object_or_404(Meeting, pk=pk, user=request.user)
+    if request.method == 'POST':
+        form = MeetingForm(request.POST, instance=meeting)
+        if form.is_valid():
+            meeting_obj = form.save(commit=False)
+            meeting_obj.user = request.user
+            _normalize_all_day_event(meeting_obj)
+            meeting_obj.save()
+            form.save_m2m()
+            messages.success(request, '미팅이 수정되었습니다.')
+            return redirect('dashboard')
+    else:
+        form = MeetingForm(instance=meeting)
+    return render(request, 'attendance/meeting_form.html', {'form': form, 'is_edit': True, 'meeting_obj': meeting})
+
+
+@login_required
+def meeting_delete(request, pk):
+    meeting = get_object_or_404(Meeting, pk=pk, user=request.user)
+    if request.method != 'POST':
+        return HttpResponseForbidden('잘못된 요청입니다.')
+    meeting.delete()
+    messages.success(request, '미팅이 삭제되었습니다.')
+    return redirect('dashboard')
 
 
 @login_required

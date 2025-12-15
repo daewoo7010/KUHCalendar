@@ -433,7 +433,13 @@
                     if (hasDelete) {
                         deleteForm.classList.remove('d-none');
                         deleteForm.action = props.deleteUrl;
-                        deleteType.textContent = props.type === 'trip' ? '출장 삭제' : props.type === 'personal' ? '개인 일정 삭제' : '휴가 삭제';
+                        const deleteLabelMap = {
+                            trip: '출장 삭제',
+                            personal: '개인 일정 삭제',
+                            meeting: '미팅 삭제',
+                            leave: '휴가 삭제',
+                        };
+                        deleteType.textContent = deleteLabelMap[props.type] || '일정 삭제';
                     } else {
                         deleteForm.classList.add('d-none');
                         deleteForm.action = '#';
