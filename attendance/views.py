@@ -74,13 +74,17 @@ def _summary(kind: str, initials: str, title: str) -> str:
 def _parse_iso_datetime(dt_str: str):
     if not dt_str:
         return None
-    dt_str = dt_str.replace('Z', '')
     try:
-        dt = datetime.fromisoformat(dt_str)
+        if dt_str.endswith('Z'):
+            dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+        else:
+            dt = datetime.fromisoformat(dt_str)
     except ValueError:
         return None
     if timezone.is_naive(dt):
         dt = timezone.make_aware(dt, timezone=timezone.get_current_timezone())
+    else:
+        dt = dt.astimezone(timezone.get_current_timezone())
     return dt
 
 
