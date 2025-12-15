@@ -60,6 +60,16 @@ def _ensure_https(url: str) -> str:
     return url
 
 
+def _user_initial(u):
+    name = getattr(u, 'username', '') or ''
+    return name[:1] if name else ''
+
+
+def _summary(kind: str, initials: str, title: str) -> str:
+    initials_part = f"({initials}) " if initials else ''
+    return f"[{kind}] {initials_part}{title}"
+
+
 def _round_half_up(value: float) -> int:
     return math.floor(value + 0.5)
 
@@ -686,14 +696,6 @@ def calendar_feed(request, token: str):
         f"X-WR-CALNAME:{_ics_escape(user.username)} 일정",
         'METHOD:PUBLISH',
     ]
-
-    def _user_initial(u):
-        name = getattr(u, 'username', '') or ''
-        return name[:1] if name else ''
-
-    def _summary(kind: str, initials: str, title: str) -> str:
-        initials_part = f"({initials}) " if initials else ''
-        return f"[{kind}] {initials_part}{title}"
 
     for leave in leaves:
         initials = _user_initial(leave.user)
