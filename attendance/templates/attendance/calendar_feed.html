@@ -12,20 +12,20 @@
                     URL을 Google/Outlook 등에 "URL로 구독"으로 추가하면 읽기 전용 캘린더로 볼 수 있습니다. 토큰이 포함되어 있으니 외부 공유를 피하세요.
                 </p>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">내 일정만 구독</label>
+                    <label class="form-label fw-semibold">내 캘린더 구독</label>
                     <div class="input-group">
                         <input id="feedUrlMine" type="text" class="form-control" value="{{ feed_url }}" readonly>
                         <button class="btn btn-outline-secondary" type="button" data-copy-target="feedUrlMine"><i class="bi bi-clipboard"></i> 복사</button>
                     </div>
-                    <div class="form-text">휴가/외부/미팅/개인 일정(본인)만 포함합니다.</div>
+                    <div class="form-text">휴가/외부/미팅/개인 일정 중 내 것만 포함합니다.</div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">전체 일정 구독 (내 + 타인)</label>
+                    <label class="form-label fw-semibold">다른 인원 캘린더 구독</label>
                     <div class="input-group">
-                        <input id="feedUrlAll" type="text" class="form-control" value="{{ feed_url_all }}" readonly>
-                        <button class="btn btn-outline-secondary" type="button" data-copy-target="feedUrlAll"><i class="bi bi-clipboard"></i> 복사</button>
+                        <input id="feedUrlOthers" type="text" class="form-control" value="{{ feed_url_others }}" readonly>
+                        <button class="btn btn-outline-secondary" type="button" data-copy-target="feedUrlOthers"><i class="bi bi-clipboard"></i> 복사</button>
                     </div>
-                    <div class="form-text">타인 일정은 제목에 [타] 표시, CATEGORIES=other 로 구분됩니다.</div>
+                    <div class="form-text">타인의 휴가/외부/미팅을 볼 수 있습니다. 개인 일정은 제외됩니다.</div>
                 </div>
                 <div class="mb-3">
                     <div class="small text-muted">토큰이 유출된 경우 새로 발급하면 이전 URL은 즉시 무효화됩니다.</div>
