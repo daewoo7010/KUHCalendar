@@ -369,7 +369,8 @@
                     const companions = (props.participants || []).filter(Boolean);
                     const names = [props.user].concat(companions).filter(Boolean);
                     const initials = names.map(n => n.trim().charAt(0)).filter(Boolean);
-                    people.textContent = initials.join(', ');
+                    const initialsText = initials.join(',');
+                    people.textContent = initials.length ? `(${initialsText})` : '';
                     inner.appendChild(people);
 
                     if (props.type === 'trip') {
