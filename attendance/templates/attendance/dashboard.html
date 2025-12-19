@@ -278,7 +278,8 @@
 
         const getCsrf = () => {
             const formToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value;
-            return formToken || getCookie('csrftoken') || '';
+            const metaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            return formToken || metaToken || getCookie('csrftoken') || '';
         };
 
         const decodeNewlines = (value) => {
@@ -520,12 +521,19 @@
                         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                         'X-CSRFToken': getCsrf(),
                     },
+                    credentials: 'same-origin',
                     body: payload.toString(),
                 });
                 if (!res.ok) {
                     const msg = await res.text();
                     console.warn('이동/수정 실패', msg);
-                    showToast('일정을 저장하지 못했습니다. 다시 시도하거나 새로고침 후 시도해주세요.', 'danger');
+                    showToast(`일정을 저장하지 못했습니다. (${res.status})`, 'danger');
+                    return false;
+                }
+                const text = await res.text();
+                if (text && text.indexOf('error') !== -1) {
+                    console.warn('서버 응답 에러', text);
+                    showToast('일정을 저장하지 못했습니다. 다시 시도해주세요.', 'danger');
                     return false;
                 }
                 showToast('일정을 저장했습니다.', 'success');
