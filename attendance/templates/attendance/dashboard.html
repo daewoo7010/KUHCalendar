@@ -313,6 +313,8 @@
         const typeLabelMap = { trip: '외부', meeting: '미팅', personal: '개인', leave: '휴가' };
         const typeColorMap = { trip: '#0dcaf0', meeting: '#20c997', personal: '#be4bdb', leave: '#4c6ef5' };
 
+        const draggableTypes = ['trip', 'meeting', 'personal'];
+
         const calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: isMobile ? 'listWeek' : 'timeGridWeek',
             locale: 'ko',
@@ -335,7 +337,16 @@
             eventStartEditable: true,
             eventDurationEditable: true,
             eventAllow: function(dropInfo) {
-                return !!dropInfo.event.extendedProps?.canManage;
+                const type = dropInfo.event.extendedProps?.type;
+                const manageable = !!dropInfo.event.extendedProps?.canManage;
+                const allowedType = draggableTypes.includes(type);
+                if (!allowedType || !manageable) {
+                    if (!allowedType) {
+                        showToast('휴가는 캘린더에서 직접 이동할 수 없습니다. 신청 수정 화면에서 변경해주세요.', 'warning');
+                    }
+                    return false;
+                }
+                return true;
             },
             eventDisplay: 'block',
             eventContent: function(arg) {
@@ -488,12 +499,19 @@
         calendar.render();
 
         async function updateEventOnServer(event) {
+            const type = event.extendedProps.type || '';
+            if (!draggableTypes.includes(type)) {
+                return false;
+            }
             try {
                 const payload = new URLSearchParams();
-                payload.append('type', event.extendedProps.type || '');
+                payload.append('type', type);
                 payload.append('id', event.extendedProps.id || '');
-                payload.append('start', event.start ? event.start.toISOString() : '');
-                payload.append('end', event.end ? event.end.toISOString() : (event.start ? event.start.toISOString() : ''));
+                const isAllDay = event.allDay;
+                const startIso = event.start ? event.start.toISOString() : '';
+                const endIso = event.end ? event.end.toISOString() : (event.start ? new Date(event.start.getTime() + (isAllDay ? 86400000 : 0)).toISOString() : '');
+                payload.append('start', startIso);
+                payload.append('end', endIso);
                 payload.append('allDay', event.allDay ? 'true' : 'false');
 
                 const res = await fetch(updateUrl, {
@@ -505,14 +523,32 @@
                     body: payload.toString(),
                 });
                 if (!res.ok) {
-                    console.warn('이동/수정 실패', await res.text());
+                    const msg = await res.text();
+                    console.warn('이동/수정 실패', msg);
+                    showToast('일정을 저장하지 못했습니다. 다시 시도하거나 새로고침 후 시도해주세요.', 'danger');
                     return false;
                 }
+                showToast('일정을 저장했습니다.', 'success');
                 return true;
             } catch (e) {
                 console.error('캘린더 이벤트 업데이트 오류', e);
+                showToast('일정 저장 중 오류가 발생했습니다.', 'danger');
                 return false;
             }
+        }
+
+        function showToast(message, type = 'info') {
+            const toastContainer = document.querySelector('.toast-container') || document.body;
+            const toastEl = document.createElement('div');
+            toastEl.className = `toast align-items-center text-bg-${type} border-0 mb-2 show`;
+            toastEl.setAttribute('role', 'alert');
+            toastEl.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>`;
+            toastContainer.appendChild(toastEl);
+            setTimeout(() => toastEl.classList.remove('show'), 2500);
         }
 
         const highlightsByDate = (() => {

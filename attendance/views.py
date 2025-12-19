@@ -356,6 +356,7 @@ def dashboard(request):
             'allDay': True,
             'backgroundColor': color,
             'borderColor': color,
+            'editable': False,
             'extendedProps': {
                 'type': 'leave',
                 'id': leave.id,
