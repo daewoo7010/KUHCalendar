@@ -14,6 +14,7 @@ from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
 from django.core.mail import send_mail
+from django.core.paginator import Paginator
 from django.utils.crypto import get_random_string
 from django.http import HttpResponseForbidden, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -1096,8 +1097,7 @@ def management_overview(request):
             'external_30d': external_map.get(u.id, 0),
         })
 
-    leaves = LeaveRequest.objects.filter(status='approved').select_related('user').order_by('-start_date')[:50]
-    trips = TripRequest.objects.filter(status='approved').select_related('user').order_by('-start_date')[:50]
+    external_events = TripRequest.objects.filter(status='approved').select_related('user').order_by('-start_date')[:50]
 
     total_users = users.count()
     avg_usage = round(sum(usage_rates) / len(usage_rates), 1) if usage_rates else 0
@@ -1106,13 +1106,73 @@ def management_overview(request):
 
     return render(request, 'attendance/management_overview.html', {
         'user_rows': user_rows,
-        'recent_leaves': leaves,
-        'recent_trips': trips,
+        'recent_external_events': external_events,
         'total_users': total_users,
         'avg_usage': avg_usage,
         'avg_earned': avg_earned,
         'avg_remaining': avg_remaining,
     })
+
+
+@login_required
+def leave_history(request):
+    if not _user_in_groups(request.user, ['경영관리부']):
+        return HttpResponseForbidden('경영관리부 권한이 필요합니다.')
+
+    status = request.GET.get('status', 'approved')
+    leave_type = request.GET.get('leave_type', '')
+    keyword = request.GET.get('q', '').strip()
+    start_from = request.GET.get('start_from', '')
+    start_to = request.GET.get('start_to', '')
+
+    leaves = LeaveRequest.objects.select_related('user').order_by('-start_date', '-id')
+
+    if status and status != 'all':
+        leaves = leaves.filter(status=status)
+
+    if leave_type:
+        leaves = leaves.filter(leave_type=leave_type)
+
+    def _parse_date(val):
+        try:
+            return datetime.strptime(val, '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            return None
+
+    start_from_dt = _parse_date(start_from)
+    start_to_dt = _parse_date(start_to)
+
+    if start_from_dt:
+        leaves = leaves.filter(start_date__gte=start_from_dt)
+    if start_to_dt:
+        leaves = leaves.filter(start_date__lte=start_to_dt)
+
+    if keyword:
+        leaves = leaves.filter(
+            Q(user__username__icontains=keyword) |
+            Q(user__department__icontains=keyword) |
+            Q(user__position__icontains=keyword) |
+            Q(reason__icontains=keyword)
+        )
+
+    paginator = Paginator(leaves, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'leaves': page_obj,
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'status': status,
+        'leave_type': leave_type,
+        'keyword': keyword,
+        'start_from': start_from,
+        'start_to': start_to,
+        'status_choices': [('all', '전체'), ('approved', '승인'), ('pending', '대기'), ('rejected', '반려')],
+        'leave_types': LeaveRequest.LEAVE_TYPES,
+    }
+
+    return render(request, 'attendance/leave_history.html', context)
 
 
 @login_required

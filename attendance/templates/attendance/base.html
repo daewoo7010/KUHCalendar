@@ -100,6 +100,7 @@
                 {% endif %}
                 {% if user|has_group:"경영관리부" %}
                 <a class="btn btn-sm btn-outline-light" href="{% url 'management_overview' %}"><i class="bi bi-graph-up me-1"></i>경영관리 대시보드</a>
+                <a class="btn btn-sm btn-outline-light" href="{% url 'leave_history' %}"><i class="bi bi-list-check me-1"></i>휴가 승인 내역</a>
                 {% endif %}
                 {% if user|is_trip_recipient %}
                 <a class="btn btn-sm btn-outline-light" href="{% url 'trip_report_inbox' %}"><i class="bi bi-inbox me-1"></i>외부일정/출장 보고함</a>
