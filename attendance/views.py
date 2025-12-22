@@ -214,6 +214,13 @@ def _calculate_earned_leave(join_date: date, today: date, segment=None) -> int:
 
     seg_type = seg['type']
 
+    if seg_type == 'year1_calendar_monthly_skip_join_month':
+        limit_date = min(today, seg['end'])
+        # 입사월은 제외하고 다음 달부터 월 1일 적립
+        months = limit_date.month - seg['join_month']
+        earned = max(0, min(months, 12))
+        return earned
+
     if seg_type in ('year1_monthly', 'year2_partial_monthly'):
         limit_date = min(today, seg['end'])
         return _completed_months(seg['start'], limit_date)
