@@ -158,19 +158,21 @@ def _current_leave_segment(join_date: date, today: date):
     if not join_date or join_date > today:
         return None
 
+    # 첫 해는 입사월을 제외하고 같은 해 12/31까지 월 1일 적립, 12월에 초기화
+    first_year_end = date(join_date.year, 12, 31)
+
+    if today.year == join_date.year:
+        return {
+            'type': 'year1_calendar_monthly_skip_join_month',
+            'start': join_date,
+            'end': first_year_end,
+            'join_month': join_date.month,
+        }
+
+    # 이후 로직은 기존 흐름 유지: 1주년 기준 분기
     first_anniv = join_date.replace(year=join_date.year + 1)
     # Normalize anniversary day for shorter months
     first_anniv = date(first_anniv.year, first_anniv.month, min(first_anniv.day, _last_day_of_month(first_anniv.year, first_anniv.month)))
-    first_year_end = first_anniv - timedelta(days=1)
-
-    # Year 1: from join through day before 1st anniversary
-    if today <= first_year_end:
-        return {
-            'type': 'year1_monthly',
-            'start': join_date,
-            'end': first_year_end,
-            'start_month': join_date.month,
-        }
 
     # Year 2 (partial): from anniversary to Dec 31 of anniversary year
     if today.year == first_anniv.year:
