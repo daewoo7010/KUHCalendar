@@ -26,7 +26,7 @@ from .forms import LeaveForm, SignUpForm, TripForm, TripReportForm, MeetingForm,
 from .models import LeaveApprovalStep, LeaveBalance, LeaveRequest, TripReportRecipient, TripRequest, Meeting, PersonalEvent, CustomUser
 
 ADMIN_GROUP = '관리자'
-ROLE_GROUPS = ['관리자', '휴가 결재권자', '출장 결재권자', '경영관리부']
+ROLE_GROUPS = ['관리자', '휴가 결재권자', '출장 결재권자', '경영관리부', '외부일정 보고 수신자']
 
 
 def _user_in_groups(user, group_names):
@@ -1075,11 +1075,6 @@ def management_overview(request):
     User = get_user_model()
     users = User.objects.all().order_by('username')
 
-    window_start = timezone.now() - timedelta(days=30)
-    trip_counts = TripRequest.objects.filter(status='approved', start_date__gte=window_start).values('user_id').annotate(cnt=models.Count('id'))
-
-    external_map = {row['user_id']: row['cnt'] for row in trip_counts}
-
     user_rows = []
     total_leave = 0
     total_used = 0
@@ -1104,10 +1099,7 @@ def management_overview(request):
             'join_date': summary['join_date'],
             'usage_rate': summary['usage_rate'],
             'reset_date': summary['reset_date'],
-            'external_30d': external_map.get(u.id, 0),
         })
-
-    external_events = TripRequest.objects.filter(status='approved').select_related('user').order_by('-start_date')[:50]
 
     total_users = users.count()
     avg_usage = round(sum(usage_rates) / len(usage_rates), 1) if usage_rates else 0
@@ -1116,7 +1108,6 @@ def management_overview(request):
 
     return render(request, 'attendance/management_overview.html', {
         'user_rows': user_rows,
-        'recent_external_events': external_events,
         'total_users': total_users,
         'avg_usage': avg_usage,
         'avg_earned': avg_earned,
@@ -1124,6 +1115,62 @@ def management_overview(request):
     })
 
 
+@login_required
+def external_schedule_history(request):
+    allowed_groups = [ADMIN_GROUP, '경영관리부', '외부일정 보고 수신자']
+    if not _user_in_groups(request.user, allowed_groups):
+        return HttpResponseForbidden('외부일정 열람 권한이 필요합니다.')
+
+    status = request.GET.get('status', 'approved')
+    keyword = request.GET.get('q', '').strip()
+    start_from = request.GET.get('start_from', '')
+    start_to = request.GET.get('start_to', '')
+
+    trips = TripRequest.objects.select_related('user').prefetch_related('participants').order_by('-start_date', '-id')
+
+    if status and status != 'all':
+        trips = trips.filter(status=status)
+
+    def _parse_date(val):
+        try:
+            return datetime.strptime(val, '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            return None
+
+    start_from_dt = _parse_date(start_from)
+    start_to_dt = _parse_date(start_to)
+
+    if start_from_dt:
+        trips = trips.filter(start_date__date__gte=start_from_dt)
+    if start_to_dt:
+        trips = trips.filter(end_date__date__lte=start_to_dt)
+
+    if keyword:
+        trips = trips.filter(
+            Q(user__username__icontains=keyword) |
+            Q(user__department__icontains=keyword) |
+            Q(user__position__icontains=keyword) |
+            Q(location__icontains=keyword) |
+            Q(purpose__icontains=keyword) |
+            Q(participants__username__icontains=keyword)
+        ).distinct()
+
+    paginator = Paginator(trips, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'trips': page_obj,
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'status': status,
+        'keyword': keyword,
+        'start_from': start_from,
+        'start_to': start_to,
+        'status_choices': [('all', '전체'), ('approved', '승인'), ('pending', '대기'), ('rejected', '반려')],
+    }
+
+    return render(request, 'attendance/external_history.html', context)
 @login_required
 def leave_history(request):
     if not _user_in_groups(request.user, ['경영관리부']):
