@@ -79,18 +79,6 @@
     </div>
 </div>
 
-<div class="card shadow-sm border-0">
-    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div>
-            <h5 class="mb-1"><i class="bi bi-airplane-fill me-2"></i>외부일정 내역</h5>
-            <div class="text-muted small">승인된 외부일정을 전용 페이지에서 검색/열람합니다.</div>
-        </div>
-        <div class="d-flex gap-2">
-            <a class="btn btn-sm btn-outline-primary" href="{% url 'external_history' %}"><i class="bi bi-search me-1"></i>외부일정 내역 보기</a>
-            <a class="btn btn-sm btn-outline-secondary" href="{% url 'leave_history' %}"><i class="bi bi-list-check me-1"></i>휴가 승인 내역</a>
-        </div>
-    </div>
-</div>
 <style>
     @media (max-width: 576px) {
         .mgmt-table th, .mgmt-table td { padding: 0.45rem 0.4rem; font-size: 0.9rem; white-space: nowrap; }
